@@ -1,0 +1,14 @@
+errorbar.capsize : 4
+font.size : 14 
+axes.labelsize : 16
+axes.labelweight : bold 
+axes.grid : True 
+axes.grid.which : both 
+axes.titlesize : 18
+axes.titleweight : bold
+grid.linestyle : -- 
+legend.fontsize : 12
+lines.linestyle : 
+lines.markersize : 8
+lines.linewidth : 2
+figure.figsize : 12, 7
