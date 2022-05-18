@@ -323,7 +323,7 @@ def analyze_data(df):
             else:
                 es.append(e)
                 dedxs.append(dedx)
-                pitch.append(lovercostheta)
+                pitches.append(lovercostheta)
                 e -= de                                  # Lower energy accordingly
                 prev_range = rrange[i]                   # Update prev_range
 
