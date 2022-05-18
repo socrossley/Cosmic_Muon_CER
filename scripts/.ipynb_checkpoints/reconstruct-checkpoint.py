@@ -1,10 +1,14 @@
+import sys
+from os.path import realpath, dirname
+sys.path.append(dirname(realpath('')))
+
 import numpy as np
 import pandas as pd
 import warnings
 import time
 import pylandau
 from pylandau import langau
-import cer_util
+from util.cer_util import CER
 warnings.filterwarnings('ignore')
 
 fit_data_loc = r'./data/stat_fit_data_full.csv'
@@ -13,7 +17,7 @@ fitdata = pd.read_csv(fit_data_loc)
 def langau_pdf(dedx, mpv, eta, sig):
     return eta * pylandau.get_langau_pdf(dedx, mpv, eta, sig)
 
-cer = cer_util.CER()
+cer = CER()
 cer.load_muons()
 cer.slim_muons() 
 

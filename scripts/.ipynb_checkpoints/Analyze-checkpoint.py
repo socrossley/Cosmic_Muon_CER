@@ -3,6 +3,9 @@
 
 # In[1]:
 
+import sys
+from os.path import realpath, dirname
+sys.path.append(dirname(realpath('')))
 
 import numpy as np
 import pandas as pd
@@ -264,6 +267,7 @@ def analyze_data(df):
     #--------------------------------------Instantiate principal data arrays---------------------------------------
     dedxs = []
     es = []
+    pitches = []
 
     #-----------------------------------------Initialize relevant raw data-----------------------------------------
     e_losses_per_step = df['dedx_y']
@@ -319,6 +323,7 @@ def analyze_data(df):
             else:
                 es.append(e)
                 dedxs.append(dedx)
+                pitch.append(lovercostheta)
                 e -= de                                  # Lower energy accordingly
                 prev_range = rrange[i]                   # Update prev_range
 
@@ -329,13 +334,13 @@ def analyze_data(df):
     print(f'Done! Analysis time: {int(t//60)}m {t%60:0.1f}s')  
     print_debug_data()
     
-    return es, dedxs
+    return es, dedxs, pitches
 
 
 # In[14]:
 
 
-es, dedxs = analyze_data(df)
+es, dedxs, pitches = analyze_data(df)
 
 
 # In[2]:
@@ -346,6 +351,7 @@ def save_file(path):
         writer = csv.writer(save)
         writer.writerow(es)
         writer.writerow(dedxs)
+        writer.writerow(pitches)
     print(f"Saved to {path}.")
 
 

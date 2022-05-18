@@ -3,6 +3,9 @@
 
 # In[1]:
 
+import sys
+from os.path import realpath, dirname
+sys.path.append(dirname(realpath('')))
 
 import numpy as np
 import pandas as pd
@@ -30,18 +33,17 @@ args = vars(parser.parse_args())
 full = args['full']
 save = args['save']
 
+idx = 0
 data_loc = r"./data/simulated_cosmics.root"
 if full:
+    idx = 3
     data_loc = r"./data/simulated_cosmics_full.root"
     
 print("Using data location:", data_loc)
 
 savefile = r'./data/' + save
 if save:
-    confirm = input(f"Will save output to {savefile}. Confirm (yes/no): ")
-    if confirm != 'yes':
-        sys.exit(0)
-    print('Starting...')
+    print(f'Will save to {savefile}')
 
 
 # In[8]:
@@ -62,8 +64,6 @@ file.values()
 # In[5]:
 
 
-# idx = 3 for full dataset, 0 for smaller dataset
-idx = 0
 tree = file.values()[idx]
 per_particle_variables = ['backtracked_e','backtracked_pdg','backtracked_purity']
 variables = ['dedx_y','rr_y','pitch_y']
@@ -267,6 +267,7 @@ def analyze_data(df):
     #--------------------------------------Instantiate principal data arrays---------------------------------------
     dedxs = []
     es = []
+    pitches = []
 
     #-----------------------------------------Initialize relevant raw data-----------------------------------------
     e_losses_per_step = df['dedx_y']
@@ -322,6 +323,7 @@ def analyze_data(df):
             else:
                 es.append(e)
                 dedxs.append(dedx)
+                pitch.append(lovercostheta)
                 e -= de                                  # Lower energy accordingly
                 prev_range = rrange[i]                   # Update prev_range
 
@@ -332,13 +334,13 @@ def analyze_data(df):
     print(f'Done! Analysis time: {int(t//60)}m {t%60:0.1f}s')  
     print_debug_data()
     
-    return es, dedxs
+    return es, dedxs, pitches
 
 
 # In[14]:
 
 
-es, dedxs = analyze_data(df)
+es, dedxs, pitches = analyze_data(df)
 
 
 # In[2]:
@@ -349,6 +351,7 @@ def save_file(path):
         writer = csv.writer(save)
         writer.writerow(es)
         writer.writerow(dedxs)
+        writer.writerow(pitches)
     print(f"Saved to {path}.")
 
 
