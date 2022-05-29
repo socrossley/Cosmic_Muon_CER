@@ -56,7 +56,7 @@ def dpdx(KE,x,mass,I=I):
     epsilon = (K/2.)*(Z/A)*(x*rho/(b*b))
     A0 = (2*Me*(b*g)**2)/I
     A1 = epsilon/I
-    return (1./x) * epsilon * (np.log(A0) + np.log(A1) + 0.2 - (b*b) - density(b*g))
+    return (1/x) * epsilon * (np.log(A0) + np.log(A1) + 0.2 - (b*b) - density(b*g))
 
 # KE in MeV
 # x in cm
