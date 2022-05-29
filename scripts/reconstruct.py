@@ -1,6 +1,6 @@
 import sys
 from os.path import realpath, dirname
-sys.path.append(dirname(realpath('')))
+sys.path.insert(0, dirname(realpath('')))
 
 import numpy as np
 import pandas as pd
@@ -10,8 +10,21 @@ import pylandau
 from pylandau import langau
 from util.cer_util import CER
 warnings.filterwarnings('ignore')
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
-fit_data_loc = r'./data/stat_fit_data_full.csv'
+parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
+parser.add_argument("-s", "--save", default='', help="Save to file in \'./data\'")
+parser.add_argument("-f", "--fitloc", default='stat_fit_data_full.csv', help="Read fit information from \'./data/\'")
+parser.add_argument("-c", "--cut", default=False, action='store_true', help="Cut dedx < 1.25 MeV and dedx > 6 MeV")
+args = vars(parser.parse_args())
+
+save = args['save']
+fit_data_loc = rf"../data/{args['fitloc']}"
+cut = args['cut']
+
+if save:
+    print(rf'Will save to: data/{save}')
+
 fitdata = pd.read_csv(fit_data_loc)
 
 def langau_pdf(dedx, mpv, eta, sig):
@@ -22,6 +35,9 @@ cer.load_muons()
 cer.slim_muons() 
 
 def like_max(dedxs):
+    if cut:
+        dedxs = dedxs[(dedxs > 1.25) & (dedxs < 6)]
+    
     landau_params = np.array([ fitdata.iloc[i][:3] for i in range(fitdata.shape[0]) ])
     
     # One big list comprehension for maximum calculation speed
@@ -81,6 +97,7 @@ for i in range(len(truth)):
     
     like_data_dict.append(this_dict)
 
-print("Saving likelihood data...")
-like_data = pd.DataFrame.from_dict(like_data_dict)
-like_data.to_csv(r'./data/stat_binned_likelihood_data.csv', index=False, header=True)
+if save:
+    print("Saving likelihood data...")
+    like_data = pd.DataFrame.from_dict(like_data_dict)
+    like_data.to_csv(rf'../data/{save}', index=False, header=True)

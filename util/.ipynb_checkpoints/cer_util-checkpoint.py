@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 import uproot
 import time
+from os.path import realpath, dirname
+parent = realpath(dirname(realpath(dirname(realpath(__file__))))) # Don't mind this insanity
 
 # This class is designed to contain a bunch of utility functions which make manipulating and analyzing the data easier
 # The methods used in this class are generally not optimized for speed, but good for single-to-few muon analysis
@@ -15,9 +17,9 @@ class CER():
     
     def __init__(self, full=False, pitch_max = 70, dedx_max = 100):
         if full:
-            self.treeloc = r"./data/simulated_cosmics_full.root:/nuselection/CalorimetryAnalyzer"
+            self.treeloc = parent+"/data/simulated_cosmics_full.root:/nuselection/CalorimetryAnalyzer"
         else:
-            self.treeloc = r"./data/simulated_cosmics.root:CalorimetryAnalyzer;9"
+            self.treeloc = parent+r"/data/simulated_cosmics.root:CalorimetryAnalyzer;9"
             
         self.pitch_max = 0.3 / np.cos(pitch_max*np.pi/180)
         self.dedx_max = dedx_max
