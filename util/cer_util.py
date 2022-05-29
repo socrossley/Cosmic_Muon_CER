@@ -127,7 +127,7 @@ class CER():
             e -= de                                  # Lower energy accordingly
             prev_range = x                           # Update prev_range
         
-        ret = [es, dedxs]
+        ret = np.array([es, dedxs])
         if verbose:
             ret.append(msg)
         return ret
