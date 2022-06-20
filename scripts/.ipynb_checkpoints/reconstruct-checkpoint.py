@@ -101,3 +101,4 @@ if save:
     print("Saving likelihood data...")
     like_data = pd.DataFrame.from_dict(like_data_dict)
     like_data.to_csv(rf'../data/{save}', index=False, header=True)
+    print('Saved!')
