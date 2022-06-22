@@ -17,7 +17,7 @@ class CER():
     
     def __init__(self, full=False, pitch_lims = (0,70), dedx_max = 100, angle_given = True):
         if full:
-            self.treeloc = parent+"/data/simulated_cosmics_full.root:/nuselection/CalorimetryAnalyzer"
+            self.treeloc = parent+r"/data/simulated_cosmics_full.root:/nuselection/CalorimetryAnalyzer"
         else:
             self.treeloc = parent+r"/data/simulated_cosmics.root:CalorimetryAnalyzer;9"
         
