@@ -16,11 +16,13 @@ parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
 parser.add_argument("-s", "--save", default='', help="Save to file in \'./data\'")
 parser.add_argument("-f", "--fitloc", default='stat_fit_data_full.csv', help="Read fit information from \'./data/\'")
 parser.add_argument("-c", "--cut", default=False, action='store_true', help="Cut dedx < 1.25 MeV and dedx > 6 MeV")
+parser.add_argument("-p", "--pitch-lims", default=[0.3,0.87714132], nargs=2, type=float, help="Limit pitch between pitch-lims in cm (used in conjunction with pitch-limited fitloc)")
 args = vars(parser.parse_args())
 
 save = args['save']
 fit_data_loc = rf"../data/{args['fitloc']}"
 cut = args['cut']
+pitch_lims = args['pitch_lims']
 
 if save:
     print(rf'Will save to: data/{save}')
@@ -30,7 +32,7 @@ fitdata = pd.read_csv(fit_data_loc)
 def langau_pdf(dedx, mpv, eta, sig):
     return eta * pylandau.get_langau_pdf(dedx, mpv, eta, sig)
 
-cer = CER()
+cer = CER(pitch_lims=pitch_lims, angle_given=False)
 cer.load_muons()
 cer.slim_muons() 
 

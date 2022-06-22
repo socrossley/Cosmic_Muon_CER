@@ -15,13 +15,18 @@ parent = realpath(dirname(realpath(dirname(realpath(__file__))))) # Don't mind t
 
 class CER():    
     
-    def __init__(self, full=False, pitch_max = 70, dedx_max = 100):
+    def __init__(self, full=False, pitch_lims = (0,70), dedx_max = 100, angle_given = True):
         if full:
             self.treeloc = parent+"/data/simulated_cosmics_full.root:/nuselection/CalorimetryAnalyzer"
         else:
             self.treeloc = parent+r"/data/simulated_cosmics.root:CalorimetryAnalyzer;9"
+        
+        self.wire_spacing = 0.3
+        self.pitch_min, self.pitch_max = pitch_lims
+        if angle_given:
+            self.pitch_max = self.wire_spacing / np.cos(pitch_lims[1]*np.pi/180)
+            self.pitch_min = self.wire_spacing / np.cos(pitch_lims[0]*np.pi/180)
             
-        self.pitch_max = 0.3 / np.cos(pitch_max*np.pi/180)
         self.dedx_max = dedx_max
         self.dedx_min = 0
         self.test = ['trk_sce_start_x','trk_sce_start_y','trk_sce_start_z', 
@@ -74,11 +79,11 @@ class CER():
         return enters and exits
 
     def is_good_muon(self, muon):
-        if muon['backtracked_e'] < self.dedx_min or muon['backtracked_e'] > self.dedx_max:
+        if not (self.dedx_min < muon['backtracked_e'] < self.dedx_max):
             return False
         if np.abs(int(muon['backtracked_pdg'])) != 13:
             return False
-        if muon['pitch_y'][0] > self.pitch_max:
+        if not (self.pitch_min < muon['pitch_y'][0] < self.pitch_max):
             return False
         if not self.is_non_stopping_muon(muon):
             return False
@@ -95,7 +100,7 @@ class CER():
             skip_rest = True
         if dedx > self.dedx_max:
             skip_rest = True
-        if lovercostheta > self.pitch_max:
+        if not (self.pitch_min < lovercostheta < self.pitch_max):
             skip_rest = True
         return skip_rest
     
@@ -131,4 +136,3 @@ class CER():
         if verbose:
             ret.append(msg)
         return ret
-    
