@@ -87,7 +87,6 @@ start_dists, end_dists = np.array([ [distance_to_edge(r[:3]), distance_to_edge(r
 energy_mask = (slimmerdf.backtracked_e > 0) & (slimmerdf.backtracked_e < 300) & (np.abs(slimmerdf.backtracked_pdg) == 13)
 mask = ((start_dists < thresh) & (end_dists < thresh) & energy_mask).to_numpy()
 print("Will remove", np.sum(~mask), "particles")
-mask = mask[df.index.get_level_values(0)] # Broadcast to multiindex shape
 
 
 # In[8]:
@@ -106,7 +105,7 @@ print("Loaded", variables[0], "data...")
 size = sys.getsizeof(df)
 
 # Slim according to mask
-# part_df = part_df.loc[~mask]
+mask = mask[df.index.get_level_values(0)] # Broadcast to multiindex shape
 df = df.loc[mask, :]
 
 # This loop loads in the next column of the dataframe, slims it, and appends it to df
