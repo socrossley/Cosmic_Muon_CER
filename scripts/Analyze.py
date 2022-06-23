@@ -85,8 +85,9 @@ print("Preparing Slimming Mask...")
 slimmerdf = tree.arrays(slimmer_variables, library='pd')
 start_dists, end_dists = np.array([ [distance_to_edge(r[:3]), distance_to_edge(r[3:6])] for _, r in slimmerdf.iterrows() ]).T
 energy_mask = (slimmerdf.backtracked_e > 0) & (slimmerdf.backtracked_e < 300) & (np.abs(slimmerdf.backtracked_pdg) == 13)
-mask = (start_dists < thresh) & (end_dists < thresh) & energy_mask
+mask = ((start_dists < thresh) & (end_dists < thresh) & energy_mask).to_numpy()
 print("Will remove", np.sum(~mask), "particles")
+mask = mask[df.index.get_level_values(0)] # Broadcast to multiindex shape
 
 
 # In[8]:
