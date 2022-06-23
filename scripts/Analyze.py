@@ -70,16 +70,6 @@ variables = ['dedx_y','rr_y','pitch_y']
 slimmer_variables = ['trk_sce_start_x','trk_sce_start_y','trk_sce_start_z', 'trk_sce_end_x','trk_sce_end_y','trk_sce_end_z','backtracked_e', 'backtracked_pdg']
 
 
-# ### Tag for removal
-# The following cell populates the list <code>idxs_to_remove</code>, tagging the relevant rows of the dataframe for removal. For now, removal criterion is based solely on whether we think the particle both enters and exits the detector. If it neither enters nor exits at a boundary, particle is tagged for removal.
-# - TODO: Speed this up using jit
-
-# In[6]:
-
-
-
-
-
 # ### Generate principal dataframe and slim
 # In the future, we will want to do this in batches, as even the slimmed data will be too large to hold in memory all at once. Here, the data is loaded to memory in its entirety, and then slimmed accordingly. Even if we slim better, there is no way around loading the data entirely first before slimming (at least, not that I know of, uproot documentation seems to suggest no - there may be a way in  raw C++)
 # - (IMPLEMENTED) It may be better to make two dataframes, one containing the elements that are always the same for a given particle (<code>backtracked_e</code> etc.) and one containing the data points (<code>dedx_y</code>). This should take up less memory as the current implementation of uproot handles these two types of data in the same dataframe by copying the value of backtracked_e for each of the data points in dedx_y, using up a lot more memory than necessary (I think, even if they are just filled with pointers to the same memory address).
@@ -113,9 +103,6 @@ part_df = tree.arrays(per_particle_variables, library='pd')
 df = tree.arrays(variables[0], library='pd')
 print("Loaded", variables[0], "data...")
 size = sys.getsizeof(df)
-
-# True if index is in the indexes tagged for removal
-mask = df.index.isin(idxs_to_remove, level=0)
 
 # Slim according to mask
 # part_df = part_df.loc[~mask]
