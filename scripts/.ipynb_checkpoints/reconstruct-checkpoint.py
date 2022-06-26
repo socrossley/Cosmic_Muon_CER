@@ -38,7 +38,6 @@ def langau_pdf(dedx, mpv, eta, sig):
 
 cer = CER(full=full, pitch_lims=pitch_lims, angle_given=False)
 cer.load_muons()
-cer.slim_muons() 
 
 def like_max(dedxs):
     if cut:
@@ -53,8 +52,8 @@ def like_max(dedxs):
     e_min_tilde, e_max_tilde = fitdata.iloc[jtilde,-2:]
     return e_min_tilde, e_max_tilde, loglike
 
-def reconstruct_e(muon):  
-    es, dedxs = cer.generate_eloss(muon)
+def reconstruct_e(muon_idx):  
+    es, dedxs = cer.generate_eloss(muon_idx)
     e_min_tilde, e_max_tilde, loglike = like_max(dedxs)
     return e_min_tilde, e_max_tilde, loglike
 
@@ -63,22 +62,22 @@ reconstructed = []
 loglikes = []
 p_count = 0
 
-tot_particles = len(cer.muons)
+tot_particles = len(cer.muons.index)
 pcnt_per_count = 100./tot_particles
 count_per_pcnt = 1/pcnt_per_count
 running_count_for_pcnt_increment = 0
 
 print("Generating elosses and reconstructing energy...")
 start = time.perf_counter()
-for muon in cer.muons:
+for muon_idx in cer.muons.index:
     if p_count > running_count_for_pcnt_increment:
         print(f"{(running_count_for_pcnt_increment / tot_particles)*100:.0f}%   ", end = '\r', flush=True)
         running_count_for_pcnt_increment += count_per_pcnt
         
     p_count += 1
-    e_min, e_max, loglike = reconstruct_e(muon)
+    e_min, e_max, loglike = reconstruct_e(muon_idx)
     
-    true_e = muon['backtracked_e']
+    true_e = cer.muons.backtracked_e.iloc[muon_idx]
     truth.append(true_e)
     
     guess_e = (e_min, e_max)

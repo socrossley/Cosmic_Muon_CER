@@ -15,12 +15,13 @@ parent = realpath(dirname(realpath(dirname(realpath(__file__))))) # Don't mind t
 
 class CER():    
     
-    def __init__(self, full=False, pitch_lims = (0,70), dedx_max = 100, angle_given = True):
+    def __init__(self, full=False, pitch_lims = (0,70), dedx_max = 100, angle_given = True, distance_thresh = 2):
         if full:
             self.treeloc = parent+r"/data/simulated_cosmics_full.root:/nuselection/CalorimetryAnalyzer"
         else:
             self.treeloc = parent+r"/data/simulated_cosmics.root:CalorimetryAnalyzer;9"
         
+        self.distance_thresh = distance_thresh
         self.wire_spacing = 0.3
         self.pitch_min, self.pitch_max = pitch_lims
         if angle_given:
@@ -34,7 +35,8 @@ class CER():
                      'backtracked_e', 'backtracked_pdg']
         self.anal = ['dedx_y', 'rr_y', 'pitch_y']
         
-    def load_muons(self):
+        
+    def load_muons(self, slim=True):
         muons = []
         
         with uproot.open(self.treeloc) as tree:
@@ -43,56 +45,45 @@ class CER():
             anal_muons = tree.arrays(self.anal, library='pd')
             print("Loaded!")
             
-            print("Sorting into array of muons...")
-            for i in test_muons.index:
-                muon = test_muons.iloc[i].squeeze()
-                muons.append(muon)
-
-            pidx = anal_muons.index.get_level_values(0).unique()
-
-            for p in pidx:
-                anal_muon = anal_muons.loc[p,:]
-                for name in self.anal:
-                    muons[p][name] = anal_muon[name].squeeze()
-            print("Done!")
-        # Some loaded muons have no dedx_y for some reason
-        # This conditional indexing fixes this
-        muons = np.array(muons)[pidx]
-        self.muons = muons
+            # Some muons in test_muons are not present in anal_muons since pitch is too high
+            # this line fixes that
+            test_muons = test_muons.loc[anal_muons.index.get_level_values(0).unique()]
+            
+            if slim:
+                test_muons, anal_muons = self.slim_muons(test_muons, anal_muons)
+            
+        self.muons = Muons(test_muons, anal_muons)
+        
     
-    def is_non_stopping_muon(self, muon):
-        ri = muon.iloc[:3]
-        rf = muon.iloc[3:6]
-        dimensions = [0, 0, -116, 256, 116, 1036]
-        checki = np.zeros(len(dimensions)//2)
-        checkf = np.zeros(len(dimensions)//2)
+    def slim_muons(self, test_muons, anal_muons):
+        
+        def distance_to_edge(r):
+            r = np.array(r)
+            dimensions = np.array([[0, 256], [-116,116], [0,1036]])
+            return  np.min(np.abs(dimensions - r[:, np.newaxis]))
+        
+        print("Slimming...")
+        
+        start_dists, end_dists = np.array([ [distance_to_edge(r[:3]), distance_to_edge(r[3:6])] 
+                                                     for _, r in test_muons.iterrows() ]).T
 
-        for i in range(len(dimensions)//2):
-            start = dimensions[i]
-            end = dimensions[i+3]
-            thresh = (end - start)/100
-            checki[i] += start+thresh
-            checkf[i] += end-thresh
+        is_muon = np.abs(test_muons.backtracked_pdg) == 13
+        has_bethe_energy = ((self.dedx_min < test_muons.backtracked_e) &
+                            (test_muons.backtracked_e < self.dedx_max))
+        has_good_pitch = ((self.pitch_min < anal_muons.pitch_y.loc[:,0]) & 
+                          (anal_muons.pitch_y.loc[:,0] < self.pitch_max))
+        is_non_stopping = ((start_dists < self.distance_thresh) & 
+                           (end_dists < self.distance_thresh))
 
-        enters = not ((checki < ri).all() and (checkf > ri).all())
-        exits = not ((checki < rf).all() and (checkf > rf).all())
-        return enters and exits
+        mask = (is_muon & has_bethe_energy & has_good_pitch & is_non_stopping).to_numpy()
+        
+        # Broadcast mask to multiindex shape
+        _, num_dp_per_muon = np.unique(anal_muons.index.get_level_values(0), return_counts=True)
+        multi_mask = np.repeat(mask, num_dp_per_muon)
+        print("Will remove", np.sum(~mask), "particles")
 
-    def is_good_muon(self, muon):
-        if not (self.dedx_min < muon['backtracked_e'] < self.dedx_max):
-            return False
-        if np.abs(int(muon['backtracked_pdg'])) != 13:
-            return False
-        if not (self.pitch_min < muon['pitch_y'][0] < self.pitch_max):
-            return False
-        if not self.is_non_stopping_muon(muon):
-            return False
-        return True
+        return test_muons.loc[mask], anal_muons.loc[multi_mask, :]
     
-    def slim_muons(self):
-        mask = np.array([ self.is_good_muon(mu) for mu in self.muons ])
-        self.muons = self.muons[mask]
-        print("Removed", np.sum(~mask), "muons.")
     
     def datapoint_is_invalid(self, de, dedx, lovercostheta, e):
         skip_rest = False
@@ -104,18 +95,19 @@ class CER():
             skip_rest = True
         return skip_rest
     
-    def generate_eloss(self, muon, verbose=False):
+    
+    def generate_eloss(self, muon_idx, verbose=False):
         es = []
         dedxs = []
         msg = ''
 
-        e_losses = muon['dedx_y']
-        pitch = muon['pitch_y']
-        rr = muon['rr_y']
-        e = muon['backtracked_e']
-
+        e_losses = self.muons.dedx_y.loc[muon_idx]
+        pitch = self.muons.pitch_y.loc[muon_idx]
+        rr = self.muons.rr_y.loc[muon_idx]
+        e = self.muons.backtracked_e.loc[muon_idx]
+        
         prev_range = 0
-
+        
         data_points = rr.index
         for d in data_points:
             x = rr[d]                                    # Particle current x
@@ -136,3 +128,25 @@ class CER():
         if verbose:
             ret.append(msg)
         return ret
+    
+    
+class Muons():
+    
+    def __init__(self, test_muons, anal_muons):
+        self.index = np.arange(test_muons.shape[0])
+        self.test_cols = test_muons.columns
+        self.anal_cols = anal_muons.columns
+        
+        self.test_muons = test_muons.set_index(self.index)
+        idx = anal_muons.index.remove_unused_levels()
+        self.anal_muons = anal_muons.set_index(idx.set_levels(np.arange(test_muons.shape[0]), level=0))
+        
+        
+    def __getattr__(self, name):
+        if name in self.test_cols:
+            return self.test_muons[name]
+        
+        if name in self.anal_cols:
+            return self.anal_muons[name]
+        
+        raise AttributeError()

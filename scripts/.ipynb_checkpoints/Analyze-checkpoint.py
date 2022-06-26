@@ -70,59 +70,23 @@ variables = ['dedx_y','rr_y','pitch_y']
 slimmer_variables = ['trk_sce_start_x','trk_sce_start_y','trk_sce_start_z', 'trk_sce_end_x','trk_sce_end_y','trk_sce_end_z','backtracked_e', 'backtracked_pdg']
 
 
-# ### Tag for removal
-# The following cell populates the list <code>idxs_to_remove</code>, tagging the relevant rows of the dataframe for removal. For now, removal criterion is based solely on whether we think the particle both enters and exits the detector. If it neither enters nor exits at a boundary, particle is tagged for removal.
-# - TODO: Speed this up using jit
-
-# In[6]:
-
-
-def tag_for_removal(slimmerdf):
-    # Must match the format of slimmer_variables above, all values in centimeters
-    dimensions = [0, -116, 0, 256, 116, 1036]
-
-    idxs_to_remove = []
-    pcnt = 0.01
-    threshold = [(dimensions[3]-dimensions[0])*pcnt, (dimensions[4]-dimensions[1])*pcnt, (dimensions[5]-dimensions[2])*pcnt]       # Arbitrary threshold; within 3cm of boundary counts as entering or leaving the detector
-
-    for particle in slimmerdf.index:
-        start_end_vals, e, pdg = np.split(slimmerdf.iloc[particle].values, [6,7])
-        enters = False
-        exits = False
-
-        for j in range(len(dimensions)):
-
-            val = start_end_vals[j]
-            start = dimensions[j % 3]
-            end = dimensions[j % 3 + 3]
-
-            if abs(val - start) < threshold[j % 3]:
-                enters = True
-                # print("particle", particle, "enters in", j%3)
-            elif abs(val - end) < threshold[j % 3]:
-                exits = True
-                # print("particle", particle, "exits in", j%3)
-
-        # Checks if the particle enters and exits, and also that the particle has a reasonable energy and is a muon
-        if not (enters and exits) or e[0] <= 0 or e[0] >= 300 or abs(pdg[0]) != 13:
-            idxs_to_remove.append(particle)
-
-
-    print('Will remove', len(idxs_to_remove), 'particles')
-    
-    return idxs_to_remove
-
-
 # ### Generate principal dataframe and slim
 # In the future, we will want to do this in batches, as even the slimmed data will be too large to hold in memory all at once. Here, the data is loaded to memory in its entirety, and then slimmed accordingly. Even if we slim better, there is no way around loading the data entirely first before slimming (at least, not that I know of, uproot documentation seems to suggest no - there may be a way in  raw C++)
 # - (IMPLEMENTED) It may be better to make two dataframes, one containing the elements that are always the same for a given particle (<code>backtracked_e</code> etc.) and one containing the data points (<code>dedx_y</code>). This should take up less memory as the current implementation of uproot handles these two types of data in the same dataframe by copying the value of backtracked_e for each of the data points in dedx_y, using up a lot more memory than necessary (I think, even if they are just filled with pointers to the same memory address).
 
 # In[7]:
 
+thresh = 2 #cm 
+def distance_to_edge(r):
+    dimensions = np.array([[0, 256], [-116,116], [0,1036]])
+    return  np.min(np.abs(dimensions - r[:, np.newaxis]))
 
 print("Preparing Slimming Mask...")
 slimmerdf = tree.arrays(slimmer_variables, library='pd')
-idxs_to_remove = tag_for_removal(slimmerdf)
+start_dists, end_dists = np.array([ [distance_to_edge(r[:3]), distance_to_edge(r[3:6])] for _, r in slimmerdf.iterrows() ]).T
+energy_mask = (slimmerdf.backtracked_e > 0) & (slimmerdf.backtracked_e < 300) & (np.abs(slimmerdf.backtracked_pdg) == 13)
+mask = ((start_dists < thresh) & (end_dists < thresh) & energy_mask).to_numpy()
+print("Will remove", np.sum(~mask), "particles")
 
 
 # In[8]:
@@ -140,19 +104,16 @@ df = tree.arrays(variables[0], library='pd')
 print("Loaded", variables[0], "data...")
 size = sys.getsizeof(df)
 
-# True if index is in the indexes tagged for removal
-mask = df.index.isin(idxs_to_remove, level=0)
-
 # Slim according to mask
-# part_df = part_df.loc[~mask]
-df = df.loc[~mask, :]
+mask = mask[df.index.get_level_values(0)] # Broadcast to multiindex shape
+df = df.loc[mask, :]
 
 # This loop loads in the next column of the dataframe, slims it, and appends it to df
 for name in variables[1:]:
     next_col = tree.arrays(name, library='pd')
     print("Loaded", name, "data...")
     size += sys.getsizeof(next_col[name])
-    next_col = next_col.loc[~mask, :]
+    next_col = next_col.loc[mask, :]
     df = df.join(next_col, on=['entry', 'subentry'])
 
 print("Generated!")
