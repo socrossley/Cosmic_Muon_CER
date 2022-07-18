@@ -38,7 +38,7 @@ fitdata = pd.read_csv(fit_data_loc)
 def langau_pdf(dedx, mpv, eta, sig):
     return eta * pylandau.get_langau_pdf(dedx, mpv, eta, sig)
 
-cer = CER(full=full, pitch_lims=pitch_lims, angle_given=False, e_lims=())
+cer = CER(full=full, pitch_lims=pitch_lims, angle_given=False, e_lims=e_lims)
 cer.load_muons()
 
 def like_max(dedxs):
