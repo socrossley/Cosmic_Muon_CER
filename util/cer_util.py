@@ -15,7 +15,7 @@ parent = realpath(dirname(realpath(dirname(realpath(__file__))))) # Don't mind t
 
 class CER():    
     
-    def __init__(self, full=False, pitch_lims = (0,70), dedx_max = 100, angle_given = True, distance_thresh = 2):
+    def __init__(self, full=False, pitch_lims=(0,70), dedx_max=100, angle_given=True, distance_thresh=2, e_lims=(0.1,100)):
         if full:
             self.treeloc = parent+r"/data/simulated_cosmics_full.root:/nuselection/CalorimetryAnalyzer"
         else:
@@ -24,12 +24,14 @@ class CER():
         self.distance_thresh = distance_thresh
         self.wire_spacing = 0.3
         self.pitch_min, self.pitch_max = pitch_lims
+        self.e_min, self.e_max = e_lims
         if angle_given:
             self.pitch_max = self.wire_spacing / np.cos(pitch_lims[1]*np.pi/180)
             self.pitch_min = self.wire_spacing / np.cos(pitch_lims[0]*np.pi/180)
             
         self.dedx_max = dedx_max
         self.dedx_min = 0
+        self.rest_e = 0.105658
         self.test = ['trk_sce_start_x','trk_sce_start_y','trk_sce_start_z', 
                      'trk_sce_end_x','trk_sce_end_y','trk_sce_end_z',
                      'backtracked_e', 'backtracked_pdg']
@@ -68,8 +70,8 @@ class CER():
                                                      for _, r in test_muons.iterrows() ]).T
 
         is_muon = np.abs(test_muons.backtracked_pdg) == 13
-        has_bethe_energy = ((self.dedx_min < test_muons.backtracked_e) &
-                            (test_muons.backtracked_e < self.dedx_max))
+        has_bethe_energy = ((self.e_min < test_muons.backtracked_e) &
+                            (test_muons.backtracked_e < self.e_max))
         has_good_pitch = ((self.pitch_min < anal_muons.pitch_y.loc[:,0]) & 
                           (anal_muons.pitch_y.loc[:,0] < self.pitch_max))
         is_non_stopping = ((start_dists < self.distance_thresh) & 

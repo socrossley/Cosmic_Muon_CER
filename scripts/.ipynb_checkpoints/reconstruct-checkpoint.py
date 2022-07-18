@@ -13,21 +13,23 @@ warnings.filterwarnings('ignore')
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
-parser.add_argument("-s", "--save", default='', help="Save to file in \'./data\'")
-parser.add_argument("-f", "--fitloc", default='stat_fit_data_full.csv', help="Read fit information from \'./data/\'")
+parser.add_argument("-s", "--save", default='', help="Save to file in \'./data/reconstructions\'")
+parser.add_argument("-f", "--fitloc", default='stat_fit_data_full.csv', help="Read fit information from \'./data/fit_data\'")
 parser.add_argument("-c", "--cut", default=False, action='store_true', help="Cut dedx < 1.25 MeV and dedx > 6 MeV")
 parser.add_argument("-p", "--pitch-lims", default=[0.3,0.87714132], nargs=2, type=float, help="Limit pitch between pitch-lims in cm (used in conjunction with pitch-limited fitloc)")
+parser.add_argument("-e", "--energy-lims", default=[0.1,100], nargs=2, type=float, help="Limit energy between energy-lims in GeV (used in conjunction with energy-limited fitloc)")
 parser.add_argument("--full", default=False, action='store_true', help='Load the full dataset (may take a long time)')
 args = vars(parser.parse_args())
 
 save = args['save']
-fit_data_loc = rf"../data/{args['fitloc']}"
+fit_data_loc = rf"../data/fit_data/{args['fitloc']}"
 cut = args['cut']
 pitch_lims = args['pitch_lims']
+e_lims = args['energy_lims']
 full = args['full']
 
 if save:
-    print(rf'Will save to: data/{save}')
+    print(rf'Will save to: data/reconstructions/{save}')
 if full:
     print('Will load full dataset')
 
@@ -36,7 +38,7 @@ fitdata = pd.read_csv(fit_data_loc)
 def langau_pdf(dedx, mpv, eta, sig):
     return eta * pylandau.get_langau_pdf(dedx, mpv, eta, sig)
 
-cer = CER(full=full, pitch_lims=pitch_lims, angle_given=False)
+cer = CER(full=full, pitch_lims=pitch_lims, angle_given=False, e_lims=())
 cer.load_muons()
 
 def like_max(dedxs):
@@ -77,7 +79,7 @@ for muon_idx in cer.muons.index:
     p_count += 1
     e_min, e_max, loglike = reconstruct_e(muon_idx)
     
-    true_e = cer.muons.backtracked_e.iloc[muon_idx]
+    true_e = cer.muons.backtracked_e.iloc[muon_idx] - cer.rest_e
     truth.append(true_e)
     
     guess_e = (e_min, e_max)
@@ -105,5 +107,5 @@ for i in range(len(truth)):
 if save:
     print("Saving likelihood data...")
     like_data = pd.DataFrame.from_dict(like_data_dict)
-    like_data.to_csv(rf'../data/{save}', index=False, header=True)
+    like_data.to_csv(rf'../data/reconstructions/{save}', index=False, header=True)
     print('Saved!')
