@@ -1,4 +1,5 @@
 import numpy as np
+import pylandau
 
 Z = 18
 A = 39.948             # g / mol
@@ -83,3 +84,6 @@ def dedx_R(KE, mass, wcut, K=K, I=I, dens=True):
     if dens == True:
         ret -= density(b*g)/2
     return F * ret
+
+def langau_pdf(dedx, mpv, eta, sig):
+    return eta * pylandau.get_langau_pdf(dedx, mpv, eta, sig)

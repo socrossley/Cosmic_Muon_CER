@@ -3,7 +3,8 @@ import pandas as pd
 import uproot
 import time
 from os.path import realpath, dirname
-parent = realpath(dirname(realpath(dirname(realpath(__file__))))) # Don't mind this insanity
+parent = realpath(dirname(realpath(dirname(realpath(__file__))))) # Don't mind this insanity 
+from util.theory import langau_pdf
 
 # This class is designed to contain a bunch of utility functions which make manipulating and analyzing the data easier
 # The methods used in this class are generally not optimized for speed, but good for single-to-few muon analysis
@@ -36,6 +37,36 @@ class CER():
                      'trk_sce_end_x','trk_sce_end_y','trk_sce_end_z',
                      'backtracked_e', 'backtracked_pdg']
         self.anal = ['dedx_y', 'rr_y', 'pitch_y']
+        
+        self._init_dicts()
+        
+    
+    def _init_dicts(self):
+        # Lookup dictionaries for the fits, they use the same keys, so the keys can be used universally
+        
+        fit_data_dir = parent + r'/data/fit_data/'
+        self.fits = {'base': fit_data_dir + 'base_fit_data.csv',
+                     'base_c': fit_data_dir + 'base_fit_data.csv',
+                     'base_fw': fit_data_dir + 'fixedwidth_fit_data.csv',
+                     'base_cfw': fit_data_dir + 'fixedwidth_fit_data.csv',
+                     'hpitch': fit_data_dir + 'highpitch_fit_data.csv',
+                     'hpitch_c': fit_data_dir + 'highpitch_fit_data.csv',
+                     'lpitch': fit_data_dir + 'lowpitch_fit_data.csv',
+                     'lpitch_c': fit_data_dir + 'lowpitch_fit_data.csv',
+                     'narrow': fit_data_dir + 'narrow_fit_data.csv',
+                     'narrow_c': fit_data_dir + 'narrow_fit_data.csv'}
+        
+        reconstruction_dir = parent + r'/data/reconstructions/'
+        self.reconstructions = {'base': reconstruction_dir + 'base_likelihood.csv',
+                                'base_c': reconstruction_dir + 'cut_likelihood.csv',
+                                'base_fw': reconstruction_dir + 'fixedwidth_likelihood.csv',
+                                'base_cfw': reconstruction_dir + 'fixedwidth_cut_likelihood.csv',
+                                'hpitch': reconstruction_dir + 'highpitch_likelihood.csv',
+                                'hpitch_c': reconstruction_dir + 'highpitch_cut_likelihood.csv',
+                                'lpitch': reconstruction_dir + 'lowpitch_likelihood.csv',
+                                'lpitch_c': reconstruction_dir + 'lowpitch_cut_likelihood.csv',
+                                'narrow': reconstruction_dir + 'narrow_likelihood.csv',
+                                'narrow_c': reconstruction_dir + 'narrow_cut_likelihood.csv'}
         
         
     def load_muons(self, slim=True):
@@ -118,7 +149,8 @@ class CER():
             de = (x - prev_range)*dedx/1000              # Approx energy lost since last step (GeV)
 
             if self.datapoint_is_invalid(de, dedx, lovercostheta, e):
-                msg += f'Track becomed invalid at data point {d}'
+                msg += f'Track becomed invalid at data point {d}\n'
+                print(f'Track becomed invalid at data point {d}\n')
                 break
                 
             es.append(e)
@@ -128,9 +160,39 @@ class CER():
         
         ret = np.array([es, dedxs])
         if verbose:
-            ret.append(msg)
+            ret = np.append(ret, [msg])
         return ret
     
+    '''
+    Precompiled Eloss todo and test
+    
+    def generate_eloss(muon_idx):
+        e_losses = self.muons.dedx_y.loc[muon_idx]
+        pitch = self.muons.pitch_y.loc[muon_idx]
+        rr = self.muons.rr_y.loc[muon_idx]
+        e = self.muons.backtracked_e.loc[muon_idx]
+    '''
+    
+    def binned_like(self, dedxs, fit_key, cum=False):
+        # If this is a cut run, attenuate the dedxs
+        if 'c' in fit_key.split('_')[-1]:
+            dedxs = dedxs[(dedxs > 1.25) & (dedxs < 6)]
+            
+        summate = lambda a: a
+        if cum:
+            summate = np.cumsum
+        
+        fitdata = pd.read_csv(self.fits[fit_key])
+        landau_params = np.array([ fitdata.iloc[i][:3] for i in range(fitdata.shape[0]) ])
+        
+        loglike = np.array([ summate([ np.log(langau_pdf(xi, *fj_params)) - np.log(np.sum([ langau_pdf(xi, *fk_params) for fk_params in landau_params])) for xi in dedxs ]) for fj_params in landau_params ])
+        
+        return loglike
+    
+    # Returns a cumulative array of likelihood
+    def cum_binned_like(self, dedxs, fitkey):
+        return self.binned_like(dedxs, fitkey, cum=True)
+        
     
 class Muons():
     
