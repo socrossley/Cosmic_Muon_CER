@@ -5,6 +5,7 @@
 |----------------|-----|
 | Base | base | 
 | Cut | base_c |
+| Strict Cut | base_sc |
 | Fixed-Width | base_fw |
 | Cut and Fixed-Width | base_cfw |
 | High-Pitch | hpitch |
@@ -13,6 +14,7 @@
 | Low-Pitch Cut | lpitch_c |
 | Narrow Energy | narrow |
 | Narrow Energy Cut | narrow_c |
+| Narrow Energy Strict Cut | narrow_c |
 
 #### Characteristics
  - **Base**: $0.1-100$ GeV muons, $0.3-0.877$ cm pitch range

@@ -150,7 +150,6 @@ class CER():
 
             if self.datapoint_is_invalid(de, dedx, lovercostheta, e):
                 msg += f'Track becomed invalid at data point {d}\n'
-                print(f'Track becomed invalid at data point {d}\n')
                 break
                 
             es.append(e)
@@ -164,8 +163,7 @@ class CER():
         return ret
     
     '''
-    Precompiled Eloss todo and test
-    
+    # Precompiled Eloss todo and test
     def generate_eloss(muon_idx):
         e_losses = self.muons.dedx_y.loc[muon_idx]
         pitch = self.muons.pitch_y.loc[muon_idx]

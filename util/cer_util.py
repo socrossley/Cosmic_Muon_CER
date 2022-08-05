@@ -150,7 +150,6 @@ class CER():
 
             if self.datapoint_is_invalid(de, dedx, lovercostheta, e):
                 msg += f'Track becomed invalid at data point {d}\n'
-                print(f'Track becomed invalid at data point {d}\n')
                 break
                 
             es.append(e)
