@@ -34,4 +34,4 @@ This should be a decent normalized likelihood function for this system, though t
  - Don't know how to account for error in individual $\frac{dE}{dx}$ measurements. Only Poisson error is accounted for.
  - Does not account for the decrease in muon energy along its track. Energy lost can hopfully be added back along each step to get something dependent on only a single $E$ but lost energy should be fairly small.
  - Fairly confidently know the function $\text{MPV}(E,p_i)$, though there is some deviation from the theoretical equation which may come into play.
- - Don't know formulas for $\eta(E,p_i)$, $\sigma(E_p_i)$. Hopefully, there is something in the literature about these parameters, or if they don't vary significantly I can do a linear interpolation of fit data.
+ - Don't know formulas for $\eta(E,p_i)$, $\sigma(E, p_i)$. Hopefully, there is something in the literature about these parameters, or if they don't vary significantly I can do a linear interpolation of fit data.
