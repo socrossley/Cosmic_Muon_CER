@@ -47,6 +47,7 @@ class CER():
         fit_data_dir = parent + r'/data/fit_data/'
         self.fits = {'base': fit_data_dir + 'base_fit_data.csv',
                      'base_c': fit_data_dir + 'base_fit_data.csv',
+                     'base_sc': fit_data_dir + 'base_fit_data.csv',
                      'base_fw': fit_data_dir + 'fixedwidth_fit_data.csv',
                      'base_cfw': fit_data_dir + 'fixedwidth_fit_data.csv',
                      'hpitch': fit_data_dir + 'highpitch_fit_data.csv',
@@ -54,19 +55,22 @@ class CER():
                      'lpitch': fit_data_dir + 'lowpitch_fit_data.csv',
                      'lpitch_c': fit_data_dir + 'lowpitch_fit_data.csv',
                      'narrow': fit_data_dir + 'narrow_fit_data.csv',
-                     'narrow_c': fit_data_dir + 'narrow_fit_data.csv'}
+                     'narrow_c': fit_data_dir + 'narrow_fit_data.csv',
+                     'narrow_sc': fit_data_dir + 'narrow_fit_data.csv'}
         
         reconstruction_dir = parent + r'/data/reconstructions/'
-        self.reconstructions = {'base': reconstruction_dir + 'base_likelihood.csv',
-                                'base_c': reconstruction_dir + 'cut_likelihood.csv',
-                                'base_fw': reconstruction_dir + 'fixedwidth_likelihood.csv',
-                                'base_cfw': reconstruction_dir + 'fixedwidth_cut_likelihood.csv',
-                                'hpitch': reconstruction_dir + 'highpitch_likelihood.csv',
-                                'hpitch_c': reconstruction_dir + 'highpitch_cut_likelihood.csv',
-                                'lpitch': reconstruction_dir + 'lowpitch_likelihood.csv',
-                                'lpitch_c': reconstruction_dir + 'lowpitch_cut_likelihood.csv',
-                                'narrow': reconstruction_dir + 'narrow_likelihood.csv',
-                                'narrow_c': reconstruction_dir + 'narrow_cut_likelihood.csv'}
+        self.reconstructions = {'base': reconstruction_dir + 'base_reconstruction.csv',
+                                'base_c': reconstruction_dir + 'cut_reconstruction.csv',
+                                'base_sc': reconstruction_dir + 'strict_cut_reconstruction.csv',
+                                'base_fw': reconstruction_dir + 'fixedwidth_reconstruction.csv',
+                                'base_cfw': reconstruction_dir + 'fixedwidth_cut_reconstruction.csv',
+                                'hpitch': reconstruction_dir + 'highpitch_reconstruction.csv',
+                                'hpitch_c': reconstruction_dir + 'highpitch_cut_reconstruction.csv',
+                                'lpitch': reconstruction_dir + 'lowpitch_reconstruction.csv',
+                                'lpitch_c': reconstruction_dir + 'lowpitch_cut_reconstruction.csv',
+                                'narrow': reconstruction_dir + 'narrow_reconstruction.csv',
+                                'narrow_c': reconstruction_dir + 'narrow_cut_reconstruction.csv',
+                                'narrow_sc': reconstruction_dir + 'narrow_strict_cut_reconstruction.csv'}
         
         
     def load_muons(self, slim=True):
