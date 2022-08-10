@@ -15,6 +15,7 @@
 | Narrow Energy | narrow |
 | Narrow Energy Cut | narrow_c |
 | Narrow Energy Strict Cut | narrow_sc |
+| Narrow Energy Low Pitch Fixed Sigma | narrow_lpitch_fs|
 
 #### Characteristics
  - **Base**: $0.1-100$ GeV muons, $0.3-0.877$ cm pitch range

@@ -177,7 +177,10 @@ class CER():
     
     def binned_like(self, dedxs, fit_key, cum=False):
         # If this is a cut run, attenuate the dedxs
-        if 'c' in fit_key.split('_')[-1]:
+        flag = fit_key.split('_')[-1]
+        if 'sc' in flag:
+            dedxs = dedxs[(dedxs > 1.5) & (dedxs < 3.5)]
+        elif 'c' in flag:
             dedxs = dedxs[(dedxs > 1.25) & (dedxs < 6)]
             
         summate = lambda a: a
@@ -189,12 +192,12 @@ class CER():
         
         loglike = np.array([ summate([ np.log(langau_pdf(xi, *fj_params)) - np.log(np.sum([ langau_pdf(xi, *fk_params) for fk_params in landau_params])) for xi in dedxs ]) for fj_params in landau_params ])
         
-        return loglike
+        return loglike, dedxs
     
     # Returns a cumulative array of likelihood
     def cum_binned_like(self, dedxs, fitkey):
         return self.binned_like(dedxs, fitkey, cum=True)
-        
+    
     
 class Muons():
     
