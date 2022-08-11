@@ -51,7 +51,7 @@ def like_max(dedxs):
     loglike = np.array([ np.sum([ np.log(langau_pdf(xi, *fj_params)) - np.log(np.sum([ langau_pdf(xi, *fk_params) for fk_params in landau_params])) for xi in dedxs ]) for fj_params in landau_params])
     
     jtilde = np.argmax(loglike)
-    e_min_tilde, e_max_tilde = fitdata.iloc[jtilde,-2:]
+    e_min_tilde, e_max_tilde = fitdata[['e_min', 'e_max']].iloc[jtilde]
     return e_min_tilde, e_max_tilde, loglike
 
 def reconstruct_e(muon_idx):  

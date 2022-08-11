@@ -56,7 +56,8 @@ class CER():
                      'lpitch_c': fit_data_dir + 'lowpitch_fit_data.csv',
                      'narrow': fit_data_dir + 'narrow_fit_data.csv',
                      'narrow_c': fit_data_dir + 'narrow_fit_data.csv',
-                     'narrow_sc': fit_data_dir + 'narrow_fit_data.csv'}
+                     'narrow_sc': fit_data_dir + 'narrow_fit_data.csv',
+                     'narrow_lpitch_fs': fit_data_dir + 'narrow_lowpitch_fixedsig_fit_data.csv'}
         
         reconstruction_dir = parent + r'/data/reconstructions/'
         self.reconstructions = {'base': reconstruction_dir + 'base_reconstruction.csv',
@@ -70,7 +71,8 @@ class CER():
                                 'lpitch_c': reconstruction_dir + 'lowpitch_cut_reconstruction.csv',
                                 'narrow': reconstruction_dir + 'narrow_reconstruction.csv',
                                 'narrow_c': reconstruction_dir + 'narrow_cut_reconstruction.csv',
-                                'narrow_sc': reconstruction_dir + 'narrow_strict_cut_reconstruction.csv'}
+                                'narrow_sc': reconstruction_dir + 'narrow_strict_cut_reconstruction.csv',
+                                'narrow_lpitch_fs': reconstruction_dir + 'narrow_lowpitch_fixedsig_reconstruction.csv'}
         
         
     def load_muons(self, slim=True):
