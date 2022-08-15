@@ -107,8 +107,8 @@ class CER():
                                                      for _, r in test_muons.iterrows() ]).T
 
         is_muon = np.abs(test_muons.backtracked_pdg) == 13
-        has_bethe_energy = ((self.e_min < test_muons.backtracked_e) &
-                            (test_muons.backtracked_e < self.e_max))
+        has_bethe_energy = ((self.e_min + self.rest_e < test_muons.backtracked_e) &
+                            (test_muons.backtracked_e < self.e_max + self.rest_e))
         has_good_pitch = ((self.pitch_min < anal_muons.pitch_y.loc[:,0]) & 
                           (anal_muons.pitch_y.loc[:,0] < self.pitch_max))
         is_non_stopping = ((start_dists < self.distance_thresh) & 

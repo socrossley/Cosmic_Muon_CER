@@ -45,13 +45,13 @@ def like_max(dedxs):
     if cut:
         dedxs = dedxs[(dedxs > cut[0]) & (dedxs < cut[1])]
     
-    landau_params = np.array([ fitdata.iloc[i][:3] for i in range(fitdata.shape[0]) ])
+    landau_params = np.array([ fitdata[['mpv', 'eta', 'sigma']].iloc[i] for i in range(fitdata.shape[0]) ])
     
     # One big list comprehension for maximum calculation speed
     loglike = np.array([ np.sum([ np.log(langau_pdf(xi, *fj_params)) - np.log(np.sum([ langau_pdf(xi, *fk_params) for fk_params in landau_params])) for xi in dedxs ]) for fj_params in landau_params])
     
     jtilde = np.argmax(loglike)
-    e_min_tilde, e_max_tilde = fitdata[['e_min', 'e_max']].iloc[jtilde]
+    e_min_tilde, e_max_tilde = fitdata[['e_min', 'e_max']].iloc[jtilde ]
     return e_min_tilde, e_max_tilde, loglike
 
 def reconstruct_e(muon_idx):  
