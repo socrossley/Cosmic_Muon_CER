@@ -7,6 +7,7 @@ import sys
 from os.path import realpath, dirname
 sys.path.insert(1, dirname(realpath('')))
 sys.path.insert(2, dirname(realpath(''))+'/util')
+path = dirname(realpath(''))
 
 import numpy as np
 import pandas as pd
@@ -26,7 +27,7 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
 parser.add_argument("-f", "--full", default=False, type=bool, help="Use the full dataset")
-parser.add_argument("-s", "--save", default='', help="Save to file in \'/mnt/c/Users/Sam Crossley/Documents/Research/Cosmic_Muon_CER/data\'")
+parser.add_argument("-s", "--save", default='', help="Save to file in \'" + path + r"/data/\'")
 args = vars(parser.parse_args())
 
 # In[3]:
@@ -36,14 +37,14 @@ full = args['full']
 save = args['save']
 
 idx = 0
-data_loc = r"/mnt/c/Users/Sam Crossley/Documents/Research/Cosmic_Muon_CER/data/simulated_cosmics.root"
+data_loc = path + r"/data/simulated_cosmics.root"
 if full:
     idx = 3
-    data_loc = r"/mnt/c/Users/Sam Crossley/Documents/Research/Cosmic_Muon_CER/data/simulated_cosmics_full.root"
+    data_loc = path + r"/data/simulated_cosmics_full.root"
     
 print("Using data location:", data_loc)
 
-savefile = r'/mnt/c/Users/Sam Crossley/Documents/Research/Cosmic_Muon_CER/data/' + save
+savefile = path + r'/data/' + save
 if save: 
     print(f'Will save to {savefile}')
 
