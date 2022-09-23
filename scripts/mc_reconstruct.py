@@ -18,10 +18,12 @@ warnings.filterwarnings('ignore')
 parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
 parser.add_argument("-s", "--save", default='', help="Save to file in \'./data/reconstructions\'")
 parser.add_argument("-n", "--num-per-ebin", default='200', type=int, help="How many MC muons to reconstruct per energy bin")
+parser.add_argument("--mc-only", default=False, action='store_true', help="Produce the MC muon dedxs only (no reconstruction)")
 args = vars(parser.parse_args())
 
 save = args['save']
 muons_per_ebin = args['num_per_ebin']
+mc_only = args['mc_only']
 
 fitdf = pd.read_csv('../data/fit_data/narrow_lowpitch_fixedsig_fit_data.csv')
 langau_params = fitdf[['mpv', 'eta', 'sigma']]
@@ -68,8 +70,13 @@ for i, params in langau_params.iterrows():
 end = time.perf_counter()
 t = end-start
 print('Generated!')
-print(f'Total analysis time {int(t//60):d}m {t%60:.1f}s')
+print(f'Total time {int(t//60):d}m {t%60:.1f}s')
 
+if mc_only:
+    df = pd.DataFrame(dedxs_dict)
+    df.to_csv('../data/mc_dedxs.csv')
+    print("dedx data saved!")
+    sys.exit(0)
 
 # Same likelihood as used before
 def like_max(dedxs):
@@ -94,7 +101,7 @@ pcnt_per_count = 100./tot_particles
 count_per_pcnt = 1/pcnt_per_count
 running_count_for_pcnt_increment = 0
 
-print("Generating elosses and reconstructing energy...")
+print("Reconstructing energies...")
 start = time.perf_counter()
 for key, value in dedxs_dict.items():
     

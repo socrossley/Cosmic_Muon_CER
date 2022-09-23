@@ -87,3 +87,32 @@ def dedx_R(KE, mass, wcut, K=K, I=I, dens=True):
 
 def langau_pdf(dedx, mpv, eta, sig):
     return eta * pylandau.get_langau_pdf(dedx, mpv, eta, sig)
+
+
+def deltas(dedxs, num_sig=5, buff=2):
+    # Iterative delta_loc removal, default values of 5 sigma and buffer of 2
+    # Should I remove dps that are too low?
+    
+    count = 0
+    delta_locs = [0, len(dedxs)-1] # Cut out first and last data points (often outliers)
+    new_delta_locs = delta_locs.copy() # Initialize new_delta_locs to something nontrivial
+    dedxs = np.array(dedxs)
+    _dedxs = dedxs.copy()
+    
+    while len(new_delta_locs) > 0:
+        new_delta_locs = []
+        _dedxs = np.delete(dedxs, delta_locs)
+        
+        med, std = np.median(_dedxs), np.std(_dedxs)
+        cutoff = med + num_sig * std
+        
+        new_delta_locs = np.setdiff1d(np.where(dedxs >= cutoff)[0], delta_locs)
+        for i in range(-buff, buff+1):
+            delta_locs.extend((new_delta_locs+i).tolist())
+
+        delta_locs = np.unique(delta_locs)
+        delta_locs = delta_locs[(delta_locs >= 0) & (delta_locs < len(dedxs))].tolist()
+        
+        count += 1
+        
+    return np.array(delta_locs), count

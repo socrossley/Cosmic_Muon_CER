@@ -5,7 +5,8 @@
 
 import sys
 from os.path import realpath, dirname
-sys.path.append(dirname(realpath('')))
+sys.path.insert(1, dirname(realpath('')))
+sys.path.insert(2, dirname(realpath(''))+'/util')
 
 import numpy as np
 import pandas as pd
@@ -15,6 +16,7 @@ import datetime
 import gc
 import warnings
 import time
+from theory import deltas 
 warnings.filterwarnings('ignore')
 import csv
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
@@ -24,7 +26,7 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
 parser.add_argument("-f", "--full", default=False, type=bool, help="Use the full dataset")
-parser.add_argument("-s", "--save", default='', help="Save to file in \'./data\'")
+parser.add_argument("-s", "--save", default='', help="Save to file in \'/mnt/c/Users/Sam Crossley/Documents/Research/Cosmic_Muon_CER/data\'")
 args = vars(parser.parse_args())
 
 # In[3]:
@@ -34,18 +36,18 @@ full = args['full']
 save = args['save']
 
 idx = 0
-data_loc = r"./data/simulated_cosmics.root"
+data_loc = r"/mnt/c/Users/Sam Crossley/Documents/Research/Cosmic_Muon_CER/data/simulated_cosmics.root"
 if full:
     idx = 3
-    data_loc = r"./data/simulated_cosmics_full.root"
+    data_loc = r"/mnt/c/Users/Sam Crossley/Documents/Research/Cosmic_Muon_CER/data/simulated_cosmics_full.root"
     
 print("Using data location:", data_loc)
 
-savefile = r'./data/' + save
-if save:
+savefile = r'/mnt/c/Users/Sam Crossley/Documents/Research/Cosmic_Muon_CER/data/' + save
+if save: 
     print(f'Will save to {savefile}')
 
-
+print(os.fspath(data_loc))
 # In[8]:
 
 
@@ -201,6 +203,16 @@ def reset_all_counts():
     num_highpitch = 0
 
 
+def truncate_at(dedxs, pitches, es):
+    bad_dedx_locs, = np.where(dedxs > 100)
+    bad_e_locs, = np.where(es <= 0)
+    bad_pitch_locs, = np.where(~((0.3 < pitches) & (pitches < 0.3 / np.cos(70*np.pi/180))))
+    bad_locs = np.concatenate((bad_dedx_locs, bad_e_locs, bad_pitch_locs))
+
+    if len(bad_locs) == 0:
+        return -1
+    return np.min(bad_locs)
+    
 # ### Principal Analysis Loop
 # - TODO: Change how debug counts are handled. Use a dictionary instead and pass that into the relevant functions, rather than the clunky use of global variables.
 
@@ -261,32 +273,38 @@ def analyze_data(df):
             running_count_for_pcnt_increment += count_per_pcnt
 
         p_count += 1
-        data_points = df.loc[p,:].index
-        prev_range = 0
-
-        e = true_es[p]                               # True energy of the particle (GeV)
-        pur = purity[p]
-        mu = mu_type[p]
-
-        update_whole_particle_debug_data(e, pur, mu)        
-
-        for d in data_points:
-            i = (p,d)
-            x = rrange[i]                                # Particle current x
-            dedx = e_losses_per_step[i]                  # Particle recent energy loss (MeV/cm)
-            lovercostheta = pitch[i]                         # Pitch (For collection wires spaced by 3mm)
-            de = (rrange[i] - prev_range)*dedx/1000      # Approx energy lost since last step (GeV)
-
-            if datapoint_is_invalid(de, dedx, lovercostheta, e, dedx_cutoff, pitch_high_cutoff):
-                num_particles_partially_skipped += 1
-                num_skipped_dp += len(data_points) - d
-                break
-            else:
-                es.append(e)
-                dedxs.append(dedx)
-                pitches.append(lovercostheta)
-                e -= de                                  # Lower energy accordingly
-                prev_range = rrange[i]                   # Update prev_range
+        _dedxs = e_losses_per_step.loc[p].to_numpy()
+        _pitches = pitch.loc[p].to_numpy()
+        rrs = rrange.loc[p].to_numpy()
+        e = true_es.loc[p]
+        pur = purity.loc[p]
+        mu = mu_type.loc[p]
+        
+        des = np.ediff1d(rrs, to_begin=rrs[0]) * _dedxs / 1000
+        _es = e - np.cumsum(des)
+        
+        # Truncate when a datapoint is obviously bad, if fewer than 10 good dps, continue
+        trunc = truncate_at(_dedxs, _pitches, _es)
+        if (0 <= trunc) and (trunc < 10):
+            num_skipped_dp += 1
+            continue
+        
+        _dedxs = _dedxs[:trunc]
+        _pitches = _pitches[:trunc]
+        _es = _es[:trunc]
+        
+        # Get rid of deltas
+        # Configure theory to have deltas return all deltalocs.
+        delta_locs, count = deltas(_dedxs)
+        _dedxs = np.delete(_dedxs, delta_locs)
+        _pitches = np.delete(_pitches, delta_locs)
+        _es = np.delete(_es, delta_locs)
+        
+        update_whole_particle_debug_data(e, pur, mu)  
+        
+        dedxs.extend(_dedxs)
+        pitches.extend(_pitches)
+        es.extend(_es)
 
 
     print("100%     ")

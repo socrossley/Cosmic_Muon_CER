@@ -4,7 +4,7 @@ import uproot
 import time
 from os.path import realpath, dirname
 parent = realpath(dirname(realpath(dirname(realpath(__file__))))) # Don't mind this insanity 
-from util.theory import langau_pdf
+from util.theory import langau_pdf, deltas
 
 # This class is designed to contain a bunch of utility functions which make manipulating and analyzing the data easier
 # The methods used in this class are generally not optimized for speed, but good for single-to-few muon analysis
@@ -57,7 +57,8 @@ class CER():
                      'narrow': fit_data_dir + 'narrow_fit_data.csv',
                      'narrow_c': fit_data_dir + 'narrow_fit_data.csv',
                      'narrow_sc': fit_data_dir + 'narrow_fit_data.csv',
-                     'narrow_lpitch_fs': fit_data_dir + 'narrow_lowpitch_fixedsig_fit_data.csv'}
+                     'narrow_lpitch_fs': fit_data_dir + 'narrow_lowpitch_fixedsig_fit_data.csv',
+                     'mc': fit_data_dir + 'narrow_lowpitch_fixedsig_fit_data.csv'}
         
         reconstruction_dir = parent + r'/data/reconstructions/'
         self.reconstructions = {'base': reconstruction_dir + 'base_reconstruction.csv',
@@ -72,7 +73,8 @@ class CER():
                                 'narrow': reconstruction_dir + 'narrow_reconstruction.csv',
                                 'narrow_c': reconstruction_dir + 'narrow_cut_reconstruction.csv',
                                 'narrow_sc': reconstruction_dir + 'narrow_strict_cut_reconstruction.csv',
-                                'narrow_lpitch_fs': reconstruction_dir + 'narrow_lowpitch_fixedsig_reconstruction.csv'}
+                                'narrow_lpitch_fs': reconstruction_dir + 'narrow_lowpitch_fixedsig_reconstruction.csv',
+                                'mc': reconstruction_dir + 'mc_reconstruction.csv'}
         
         
     def load_muons(self, slim=True):
@@ -120,6 +122,7 @@ class CER():
         _, num_dp_per_muon = np.unique(anal_muons.index.get_level_values(0), return_counts=True)
         multi_mask = np.repeat(mask, num_dp_per_muon)
         print("Will remove", np.sum(~mask), "particles")
+        print("There are", np.sum(mask), "muons left to analyze")
 
         return test_muons.loc[mask], anal_muons.loc[multi_mask, :]
     
@@ -168,14 +171,45 @@ class CER():
             ret = np.append(ret, [msg])
         return ret
     
-    '''
+    
+    def truncate_at(self, dedxs, pitches, es):
+        bad_dedx_locs, = np.where(dedxs > self.dedx_max)
+        bad_e_locs, = np.where(es <= 0)
+        bad_pitch_locs, = np.where(~((self.pitch_min < pitches) & (pitches < self.pitch_max)))
+        bad_locs = np.concatenate((bad_dedx_locs, bad_e_locs, bad_pitch_locs))
+        
+        if len(bad_locs) == 0:
+            return None
+        return np.min(bad_locs)
+    
     # Precompiled Eloss todo and test
-    def generate_eloss(muon_idx):
-        e_losses = self.muons.dedx_y.loc[muon_idx]
-        pitch = self.muons.pitch_y.loc[muon_idx]
-        rr = self.muons.rr_y.loc[muon_idx]
+    def _generate_eloss(self, muon_idx, delta_rm=True):
+        dedxs = self.muons.dedx_y.loc[muon_idx].to_numpy()
+        pitches = self.muons.pitch_y.loc[muon_idx].to_numpy()
+        rrs = self.muons.rr_y.loc[muon_idx].to_numpy()
         e = self.muons.backtracked_e.loc[muon_idx]
-    '''
+        
+        des = np.ediff1d(rrs, to_begin=rrs[0]) * dedxs / 1000
+        es = e - np.cumsum(des)
+        
+        # Truncate when a datapoint is obviously bad
+        trunc = self.truncate_at(dedxs, pitches, es)
+        dedxs = dedxs[:trunc]
+        pitches = pitches[:trunc]
+        es = es[:trunc]
+        
+        if not delta_rm:
+            return es, dedxs
+        
+        # Get rid of deltas
+        # Configure theory to have deltas return all deltalocs.
+        delta_locs, count = deltas(dedxs)
+        dedxs = np.delete(dedxs, delta_locs)
+        pitches = np.delete(pitches, delta_locs)
+        es = np.delete(es, delta_locs)
+        
+        return es, dedxs
+        
     
     def binned_like(self, dedxs, fit_key, cum=False):
         # If this is a cut run, attenuate the dedxs
@@ -196,9 +230,11 @@ class CER():
         
         return loglike, dedxs
     
+    
     # Returns a cumulative array of likelihood
     def cum_binned_like(self, dedxs, fitkey):
         return self.binned_like(dedxs, fitkey, cum=True)
+    
     
     
 class Muons():

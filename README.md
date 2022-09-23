@@ -16,6 +16,7 @@
 | Narrow Energy Cut | narrow_c |
 | Narrow Energy Strict Cut | narrow_sc |
 | Narrow Energy Low-Pitch Fixed-Sigma | narrow_lpitch_fs|
+| Monte Carlo | mc |
 
 #### Characteristics
  - **Base**: $0.1-100$ GeV muons, $0.3-0.877$ cm pitch range
@@ -25,7 +26,8 @@
  - *Cut*: dEdx for reconstruction is excluded unless in range $(1.25, 6)$ MeV/cm (~ $< 0.5%$)
  - *Strict-Cut*: dEdx for reconstruction is excluded unless in range $(1.5, 3.5)$ MeV/cm (~ $< 5%$)
  - *Fixed-Width*: $\sigma, \eta$ in the binned Langaus are fixed to the RMS of all bins.
- - *Fixed-Sigma*
+ - *Fixed-Sigma*: Fit parameters are calculated as normal, then we take the rms of the $\sigma$ values and fix this, then we perform another fit with fixed $\sigma$. 
+ - *Monte Carlo*: For now, only one MC run, which uses the narrow, low-pitch, fixed sigma signature.
  
  
 ## Unbinned Likelihood
