@@ -138,40 +138,6 @@ class CER():
         return skip_rest
     
     
-    def generate_eloss(self, muon_idx, verbose=False):
-        es = []
-        dedxs = []
-        msg = ''
-
-        e_losses = self.muons.dedx_y.loc[muon_idx]
-        pitch = self.muons.pitch_y.loc[muon_idx]
-        rr = self.muons.rr_y.loc[muon_idx]
-        e = self.muons.backtracked_e.loc[muon_idx]
-        
-        prev_range = 0
-        
-        data_points = rr.index
-        for d in data_points:
-            x = rr[d]                                    # Particle current x
-            dedx = e_losses[d]                           # Particle recent energy loss (MeV/cm)
-            lovercostheta = pitch[d]                     # Pitch (For collection wires spaced by 3mm)
-            de = (x - prev_range)*dedx/1000              # Approx energy lost since last step (GeV)
-
-            if self.datapoint_is_invalid(de, dedx, lovercostheta, e):
-                msg += f'Track becomed invalid at data point {d}\n'
-                break
-                
-            es.append(e)
-            dedxs.append(dedx)
-            e -= de                                  # Lower energy accordingly
-            prev_range = x                           # Update prev_range
-        
-        ret = np.array([es, dedxs])
-        if verbose:
-            ret = np.append(ret, [msg])
-        return ret
-    
-    
     def truncate_at(self, dedxs, pitches, es):
         bad_dedx_locs, = np.where(dedxs > self.dedx_max)
         bad_e_locs, = np.where(es <= 0)
@@ -182,8 +148,8 @@ class CER():
             return None
         return np.min(bad_locs)
     
-    # Precompiled Eloss todo and test
-    def _generate_eloss(self, muon_idx, delta_rm=True):
+    
+    def generate_eloss(self, muon_idx, delta_rm=True):
         dedxs = self.muons.dedx_y.loc[muon_idx].to_numpy()
         pitches = self.muons.pitch_y.loc[muon_idx].to_numpy()
         rrs = self.muons.rr_y.loc[muon_idx].to_numpy()
