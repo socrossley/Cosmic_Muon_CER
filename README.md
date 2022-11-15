@@ -1,5 +1,11 @@
 # Cosmic Muon Calorimetric Energy Reconstruction
 
+The only current way to measure the properties of neutrinos is indirectly via measuring the properties of their decay products. A common neutrino decay product of the Fermilab Booster Neutrino Beam is muons, hence studying their properties is essential to studying neutrinos. 
+In this project, I am developing a novel energy reconstruction method for muons in Liquid Argon Time Projection Chambers (LArTPC). This method involves using calorimetry data from muons as they lose energy to the liquid argon medium to determine the initial energy of the muon. My goals are to quantify the energy recolution and bias in muon energy estimation of this approach, and assess the systematic impact of detector resolution and calibration accuracy on calorimetric energy reconstruction.
+There are three main components to the analysis: analysis of simulated muon energy loss data at known true muon energies, building of fits to the energy loss distributions of the analyzed data, and reconstruction new muon energy using likelihood maximization on those fits. These components are performed in <code>scripts/Analyze.py</code>, <code>Fit.ipynb</code>, and <code>scripts/recontsruct.py</code>, respectively. Each of these components are complete; the current state of the project is determining confounding variables as to why certain muons have energy loss distributions that deviate significantly from expectation. For muons that truly represent these fitted energy loss distributions, the likelihood was shown to be effective in a MC reconstruction.
+This is a research project I am doing under the guidance of Professor David Caratelli at the University of California, Santa Barbara.
+The following are personal notes I frequently reference.
+
 ## Fit data lookup table
 | Reconstruction | Key | 
 |----------------|-----|
