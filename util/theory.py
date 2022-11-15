@@ -86,7 +86,14 @@ def dedx_R(KE, mass, wcut, K=K, I=I, dens=True):
     return F * ret
 
 def langau_pdf(dedx, mpv, eta, sig):
+    if type(dedx) == np.ndarray:
+        sf = 10000
+        dedx = sf * dedx
+        mpv, eta, sig = sf * np.array([mpv, eta, sig])
+        return sf * eta * pylandau.langau_pdf(dedx, mpv, eta, sig)
+    
     return eta * pylandau.get_langau_pdf(dedx, mpv, eta, sig)
+        
 
 
 def deltas(dedxs, num_sig=5, buff=2):
