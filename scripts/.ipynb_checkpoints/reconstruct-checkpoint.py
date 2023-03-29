@@ -4,14 +4,16 @@ sys.path.insert(0, dirname(realpath('')))
 
 import numpy as np
 import pandas as pd
+import scipy.interpolate
 import warnings
 import time
 import pylandau
 from pylandau import langau
 from util.cer_util import CER
+from util.theory import langau_pdf
+from tqdm.auto import tqdm
 warnings.filterwarnings('ignore')
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-import uproot
 from Analyze import initialize, load_slimming_data, load_data, delta_rm, display_uptime
 
 
@@ -37,13 +39,6 @@ def get_inputs():
     
     return save, fit_data_loc, cut, pitch_lims, e_lims, full, drm
 
-# Vectorized langau_pdf calculation
-def langau_pdf(dedxs, params):
-    sf = 100
-    scaled_dedxs = dedxs*sf
-    scaled_params = params*sf
-    return sf * scaled_params[1] * pylandau.langau_pdf(scaled_dedxs, *scaled_params)
-
 
 def slim_further(df, part_df, pitch_lims):
     # Final condition is always true, just makes sure pitch_mask has the right shape
@@ -58,20 +53,6 @@ def slim_further(df, part_df, pitch_lims):
     return df, part_df
 
 
-def like_max(dedxs, fitdata):
-    # if cut:
-    #     dedxs = dedxs[(dedxs > cut[0]) & (dedxs < cut[1])]
-    
-    landau_params = np.array([ fitdata[['mpv', 'eta', 'sigma']].iloc[i] for i in range(fitdata.shape[0]) ])
-    
-    # One big list comprehension for maximum calculation speed
-    loglike = np.array([ np.sum([ np.log(langau_pdf(xi, *fj_params)) - np.log(np.sum([ langau_pdf(xi, *fk_params) for fk_params in landau_params])) for xi in dedxs ]) for fj_params in landau_params])
-    
-    jtilde = np.argmax(loglike)
-    e_min_tilde, e_max_tilde = fitdata[['e_min', 'e_max']].iloc[jtilde]
-    return e_min_tilde, e_max_tilde, loglike
-
-
 def truncate(df, pitch_lims):
     df = df.droplevel(level=0)
     bad_indices = df.index[(df.dedx_y > 100) | (df.pitch_y < pitch_lims[0]) | (df.pitch_y > pitch_lims[1])]
@@ -84,24 +65,41 @@ def truncate(df, pitch_lims):
     
     return df.iloc[:trunc]
     
-
-def reconstruct_e(df, l_params_matrix, lookup_df, index):
+    
+def reconstruct_e(df, pdfs, lookup_df, index):
     df = df.droplevel(level=0)
     
     dedxs = df.dedx_y.to_numpy().astype(np.float64)
     
-    lognorm = np.log(np.sum(np.array([ langau_pdf(dedxs, params) for params in l_params_matrix ]), axis=0))
-    logmodel = np.array([ langau_pdf(dedxs, params) for params in l_params_matrix ])
+    lognorm = np.log(np.sum(np.array([ pdf(dedxs) for pdf in pdfs ]), axis=0))
+    logmodel = np.log(np.array([ pdf(dedxs) for pdf in pdfs ]))
     loglike = np.sum(logmodel-lognorm, axis=1)
     jtilde = np.argmax(loglike)
     
     e_min_tilde, e_max_tilde = lookup_df.iloc[jtilde]
     
-    res = pd.Series([e_min_tilde, e_max_tilde, *loglike], index=index)
+    res = pd.Series([e_min_tilde, e_max_tilde, dedxs.shape[0], *loglike], index=index)
+    return res
+
+    
+# Legacy reconstruction algorithm (slow)
+def _reconstruct_e(df, l_params_matrix, lookup_df, index):
+    df = df.droplevel(level=0)
+    
+    dedxs = df.dedx_y.to_numpy().astype(np.float64)
+    
+    lognorm = np.log(np.sum(np.array([ langau_pdf(dedxs, *params) for params in l_params_matrix ]), axis=0))
+    logmodel = np.log(np.array([ langau_pdf(dedxs, *params) for params in l_params_matrix ]))
+    loglike = np.sum(logmodel-lognorm, axis=1)
+    jtilde = np.argmax(loglike)
+    
+    e_min_tilde, e_max_tilde = lookup_df.iloc[jtilde]
+    
+    res = pd.Series([e_min_tilde, e_max_tilde, dedxs.shape[0], *loglike], index=index)
     return res
 
 
-def reconstruct(df, fitdata, pitch_lims, drm):
+def preprocess(df, pitch_lims, drm):
     start = time.perf_counter()
     print("Truncating...", end='')
     data = df.groupby(level=0).apply(truncate, pitch_lims)
@@ -112,11 +110,35 @@ def reconstruct(df, fitdata, pitch_lims, drm):
         data = data.groupby(level=0).apply(delta_rm, *drm)
         display_uptime(start)
     
-    print("Reconstructing Energy...", end='')
-    col_names = ['reconstructed_min', 'reconstructed_max', *(np.char.array(['L']*10) + np.char.array(np.arange(10)).astype(str))]
-    l_params = fitdata[['mpv', 'eta', 'sigma']].to_numpy()
+    return data
+
+# Test this
+def generate_interpolated_pdfs(fitdata):
+    x = np.append(np.linspace(0,10,1000),np.linspace(11,1000,10))
+    pdfs = (
+    fitdata.groupby(level=0)
+    .apply(
+            lambda df: scipy.interpolate.interp1d(x, langau_pdf(x, *df['mpv'], *df['eta'], *df['sigma']))
+          )
+    .to_list()
+    )
+    return pdfs
+    
+def reconstruct(data, fitdata):
+    pdfs = generate_interpolated_pdfs(fitdata)
+    start = time.perf_counter()
+    num_bins = fitdata.shape[0]
+    col_names = ['reconstructed_min', 'reconstructed_max', 'track_length', *(np.char.array(['L']*num_bins) + np.char.array(np.arange(num_bins)).astype(str))]
     lookup_df = fitdata[['e_min', 'e_max']]
-    reconstruction_data = data.groupby(level=0).apply(reconstruct_e, l_params, lookup_df, col_names)
+    tqdm.pandas(desc="Reconstructing Energy", unit="muon")
+    reconstruction_data = (
+                           data.groupby(level=0)
+                               .progress_apply(reconstruct_e, 
+                                               pdfs=pdfs, 
+                                               lookup_df=lookup_df, 
+                                               index=col_names,
+                                               )
+                          )
     
     display_uptime(start, 'Done! Total Reconstruction Time:')
     return reconstruction_data
@@ -138,13 +160,15 @@ def main():
     df, part_df = slim_further(df, part_df, pitch_lims)
     fitdata = pd.read_csv(fit_data_loc)
     
-    result = reconstruct(df, fitdata, pitch_lims, drm)
+    preprocessed_df = preprocess(df, pitch_lims, drm)
+    
+    result = reconstruct(preprocessed_df, fitdata)
     result = result.join(part_df.backtracked_e, on='entry')[['backtracked_e', *list(result.columns.values)]]
     result = result.rename(columns={'backtracked_e': 'truth'})
-    
+        
     if save:
         print(f"Saving to {savefile}...")
-        result.to_csv(savefile, index=False, header=True)
+        result.to_csv(savefile, index=True, header=True)
         print("Saved!")
         
     display_uptime(start, "Complete! Total Uptime:")

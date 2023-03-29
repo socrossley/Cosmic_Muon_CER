@@ -60,7 +60,26 @@ class CER():
                      'narrow_lpitch_fs': fit_data_dir + 'narrow_lowpitch_fixedsig_fit_data.csv',
                      'mc': fit_data_dir + 'narrow_lowpitch_fixedsig_fit_data.csv',
                      'drm52': fit_data_dir + 'delta_rm52_fit_data.csv',
-                     'drm33': fit_data_dir + 'delta_rm33_fit_data.csv'}
+                     'drm33': fit_data_dir + 'delta_rm33_fit_data.csv',
+                     'mc_test': fit_data_dir + 'narrow_lowpitch_fixedsig_fine_fit_data.csv',
+                     'mc_1pbias': fit_data_dir + 'narrow_lowpitch_fixedsig_fine_fit_data.csv',
+                     'mc_5perror': fit_data_dir + 'narrow_lowpitch_fixedsig_fine_fit_data.csv',
+                     'mcth': fit_data_dir + 'mc_th_fit_data.csv',
+                     'mcth_1pbias': fit_data_dir + 'mc_th_fit_data.csv',
+                     'mcth_5perror': fit_data_dir + 'mc_th_fit_data.csv',
+                     
+                     'mcth_0ps0pb': fit_data_dir + 'th/linear_0ps.csv',
+                     'mcth_2ps0pb': fit_data_dir + 'th/linear_2ps.csv',
+                     'mcth_4ps0pb': fit_data_dir + 'th/linear_4ps.csv',
+                     'mcth_6ps0pb': fit_data_dir + 'th/linear_6ps.csv',
+                     'mcth_8ps0pb': fit_data_dir + 'th/linear_8ps.csv',
+                     'mcth_10ps0pb': fit_data_dir + 'th/linear_10ps.csv',
+                     
+                     'mcth_0ps1pb': fit_data_dir + 'th/linear_0ps.csv',
+                     'mcth_0ps2pb': fit_data_dir + 'th/linear_0ps.csv',
+                     'mcth_0ps-1pb': fit_data_dir + 'th/linear_0ps.csv',
+                     'mcth_0ps-2pb': fit_data_dir + 'th/linear_0ps.csv',
+                     }
         
         reconstruction_dir = parent + r'/data/reconstructions/'
         self.reconstructions = {'base': reconstruction_dir + 'base_reconstruction.csv',
@@ -78,7 +97,26 @@ class CER():
                                 'narrow_lpitch_fs': reconstruction_dir + 'narrow_lowpitch_fixedsig_reconstruction.csv',
                                 'mc': reconstruction_dir + 'mc_reconstruction.csv',
                                 'drm52': reconstruction_dir + 'delta_rm52_reconstruction.csv',
-                                'drm33': reconstruction_dir + 'delta_rm33_reconstruction.csv'}
+                                'drm33': reconstruction_dir + 'delta_rm33_reconstruction.csv',
+                                'mc_test': reconstruction_dir + 'mc_fine_reconstruction.csv',
+                                'mc_1pbias': reconstruction_dir + 'mc_1pbias_reconstruction.csv',
+                                'mc_5perror': reconstruction_dir + 'mc_5perror_reconstruction.csv',
+                                'mcth': reconstruction_dir + 'mc_theory_reconstruction.csv',
+                                'mcth_1pbias': reconstruction_dir + 'mc_theory_1pbias_reconstruction.csv',
+                                'mcth_5perror': reconstruction_dir + 'mc_theory_5perror_reconstruction.csv',
+                                
+                                'mcth_0ps0pb': reconstruction_dir + 'th/linear_0ps0pb.csv',
+                                'mcth_2ps0pb': reconstruction_dir + 'th/linear_2ps0pb.csv',
+                                'mcth_4ps0pb': reconstruction_dir + 'th/linear_4ps0pb.csv',
+                                'mcth_6ps0pb': reconstruction_dir + 'th/linear_6ps0pb.csv',
+                                'mcth_8ps0pb': reconstruction_dir + 'th/linear_8ps0pb.csv',
+                                'mcth_10ps0pb': reconstruction_dir + 'th/linear_10ps0pb.csv',
+                                
+                                'mcth_0ps1pb': reconstruction_dir + 'th/linear_0ps1pb.csv',
+                                'mcth_0ps2pb': reconstruction_dir + 'th/linear_0ps2pb.csv',
+                                'mcth_0ps-1pb': reconstruction_dir + 'th/linear_0ps-1pb.csv',
+                                'mcth_0ps-2pb': reconstruction_dir + 'th/linear_0ps-2pb.csv',
+                                }
         
         
     def load_muons(self, slim=True):

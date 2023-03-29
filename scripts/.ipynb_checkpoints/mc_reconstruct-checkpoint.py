@@ -9,139 +9,136 @@ import matplotlib.pyplot as plt
 from scipy.integrate import quad
 from scipy.optimize import fsolve, curve_fit
 import scipy.stats
+from tqdm.auto import tqdm
 import time
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import warnings
+import reconstruct
+from landaupy import langauss
 warnings.filterwarnings('ignore')
 
-# Parse argments inputted on the command line
-parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
-parser.add_argument("-s", "--save", default='', help="Save to file in \'./data/reconstructions\'")
-parser.add_argument("-n", "--num-per-ebin", default='200', type=int, help="How many MC muons to reconstruct per energy bin")
-parser.add_argument("--mc-only", default=False, action='store_true', help="Produce the MC muon dedxs only (no reconstruction)")
-args = vars(parser.parse_args())
+def get_inputs():
+    # Parse argments inputted on the command line
+    parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
+    parser.add_argument("-s", "--save-reconstruction", default='', help="Save to file in \'./data/reconstructions\'")
+    parser.add_argument("-m", "--save-muon-tracks", default='', help="Save to file in \'./data\'")
+    parser.add_argument("-n", "--num-per-ebin", default='200', type=int, help="How many MC muons to reconstruct per energy bin")
+    parser.add_argument("--mc-only", default=False, action='store_true', help="Produce the MC muon dedxs only (no reconstruction)")
+    parser.add_argument("-b", "--bias", default=0, type=float, help="Bias percentage to introduce to the generated dE/dx")
+    parser.add_argument("-e", "--error", default=0, type=float, help="Error percentage to introduce to the generated dE/dx")
+    parser.add_argument("-f", "--fitloc", default='narrow_lowpitch_fixedsig_fit_data.csv', 
+                        help="Location in './data/fit_data/' of Langau models from which to generate MC dE/dx values.")
+    parser.add_argument("--energy-range", default=(1,10), type=(float, float), help="Energy range over which to generate MC muons.")
+    
+    args = vars(parser.parse_args())
 
-save = args['save']
-muons_per_ebin = args['num_per_ebin']
-mc_only = args['mc_only']
+    return args
 
-fitdf = pd.read_csv('../data/fit_data/narrow_lowpitch_fixedsig_fit_data.csv')
-langau_params = fitdf[['mpv', 'eta', 'sigma']]
-rng = np.random.default_rng()
 
+def initialize(fits, spread_pct):    
+    fitdf = pd.read_csv('../data/fit_data/' + fits)
+
+    langau_params = fitdf[['mpv', 'eta', 'sigma']]
+    e_bins = fitdf[['e_min', 'e_max']]
+    return langau_params, e_bins
+
+
+# Vectorized!
+def sample_from_langau(mpv, eta, sigma, size):
+    # Samples according to landaupy, correction to mpv must be made first
+    mpv -= theory.mpv_conv * eta
+    return langauss.sample(mpv, eta, sigma, size)
                         
-def sample_from_langau(mpv, eta, sigma):
-    prob = rng.uniform()
-    to_solve = lambda b: quad(theory.langau_pdf, -np.inf, b, args=(mpv, eta, sigma))[0]-prob
-    dedx = fsolve(to_solve, 2)[0]
-    return prob, dedx
-                   
-                        
-def lognorm(x, s, loc, scale):
-    return scipy.stats.lognorm.pdf(x, s, loc, scale)
-                        
+    
+def rand_trkl(num_muons):
+    # Generate a random track length from lognormal distribution that loosely follows actual track length distribution
+    # Hardcoded track length distribution parameters
+    s, loc, scale = ( 2.01980595e-01, -1.23848172e+03, 1.66933758e+03 )
+    
+    rand_trkls = np.zeros(num_muons)
+    minlength, maxlength = 2, 3000
+    bad = (rand_trkls < minlength) | (rand_trkls > maxlength)
+    
+    while bad.any():
+        rand_trkls[bad] = scipy.stats.lognorm.rvs(s, loc, scale, np.sum(bad))
+        bad = (rand_trkls < minlength) | (rand_trkls > maxlength)
+    
+    return rand_trkls.astype(int)
 
-# Hardcoded track lenght distribution parameters
-s, loc, scale = ( 2.01980595e-01, -1.23848172e+03, 1.66933758e+03 )
-def rand_trkl():
-    val = int(scipy.stats.lognorm.rvs(s, loc, scale))
-    while val < 2:
-        val = int(scipy.stats.lognorm.rvs(s, loc, scale))
-    return val
+
+def display_uptime(start, msg=''):
+    now = time.perf_counter()
+    t = now-start
+    print(f'{msg} {int(t//60)}m {t%60:0.1f}s')
+    return now
+
+
+def generate_dedxs(df, rng):
+    mpv, eta, sigma, *trkls = df.values[0]
+    trkls = np.asarray(trkls, dtype=int)
+    tot_trkls = int(trkls.sum())
+    dedxs = sample_from_langau(mpv, eta, sigma, tot_trkls)
+    track_lengths_per_dedx = np.repeat(trkls, trkls)
+    
+    num_muons = len(trkls)
+    lvl0_offset = df.index[0]*num_muons
+    entry = np.repeat(np.arange(num_muons), trkls) + lvl0_offset 
+    # https://codereview.stackexchange.com/questions/83018/vectorized-numpy-version-of-arange-with-multiple-start-stop
+    subentry = np.repeat(trkls - trkls.cumsum(), trkls) + np.arange(trkls.sum()) 
+    index = pd.MultiIndex.from_arrays([entry, subentry], names=['entry','subentry'])
+    return pd.DataFrame(np.transpose([dedxs, track_lengths_per_dedx]), index=index, 
+                        columns=['dedx_y', 'track_length'])
+
 
 # Perform the MC generation
-print("Generating MC muon tracks...")
-start = time.perf_counter()
-dedxs_dict = {} 
-for i, params in langau_params.iterrows():
-    print('Bin '+ str(i) + '...')
-    dedxs_per_ebin = []
-    for j in range(muons_per_ebin):
-        trkl = rand_trkl()
+def mc_generate(langau_params, e_bins, muons_per_ebin, energy_range):
+    rng = np.random.default_rng()
+    langau_params_for_generation = langau_params.loc[(e_bins['e_max'] > energy_range[0]) & (e_bins['e_min'] < energy_range[1])]
+    num_bins = langau_params_for_generation.shape[0]
+    tot_num_muons = muons_per_ebin * num_bins
+    trkls = rand_trkl(tot_num_muons)
+    
+    generator_frame = langau_params_for_generation.copy()
+    trkls_df = pd.DataFrame(trkls.reshape(num_bins, muons_per_ebin))
+    generator_frame = generator_frame.join(trkls_df)
+    tqdm.pandas(desc='Generating MC muon data', unit="bin")
+    df = generator_frame.groupby(level=0).progress_apply(generate_dedxs, rng=rng)
+    df = df.droplevel(0)
+    df = df.astype({'track_length': 'uint8'})
+    return df
+
+    
+def main():
+    start = time.perf_counter()
+    args = get_inputs()
+    langau_params, e_bins = initialize(args['fitloc'], args['error'])
+    muons_per_ebin = args['num_per_ebin']
+    energy_range = args['energy_range']
+    
+    dedxs_df = mc_generate(langau_params, e_bins, muons_per_ebin, energy_range)
+    display_uptime(start, "Complete:")
+    
+    dedxs_df.dedx_y += dedxs_df.dedx_y * args['bias']/100
+    dedxs_df.dedx_y += scipy.stats.norm.rvs(0, dedxs_df.dedx_y*args['error']/100)
+    
+    dedxs_savefile = args['save_muon_tracks']
+    rec_savefile = args['save_reconstruction']
+    
+    if dedxs_savefile:
+        dedxs_df.dedx_y.to_csv(r'../data/' + dedxs_savefile)
+        print("Saved MC-generated dE/dx data to \'./data/" + dedxs_savefile)
         
-        dedxs = []
-        for k in range(trkl):
-            prob, dedx = sample_from_langau(*params)
-            dedxs.append(dedx)
-        
-        dedxs_per_ebin.append(dedxs)
-    dedxs_dict[str(i)] = dedxs_per_ebin
     
-end = time.perf_counter()
-t = end-start
-print('Generated!')
-print(f'Total time {int(t//60):d}m {t%60:.1f}s')
-
-if mc_only:
-    df = pd.DataFrame(dedxs_dict)
-    df.to_csv('../data/mc_dedxs.csv')
-    print("dedx data saved!")
-    sys.exit(0)
-
-# Same likelihood as used before
-def like_max(dedxs):
-    landau_params = np.array([ langau_params.iloc[i] for i in range(fitdf.shape[0]) ])
+    result = reconstruct.reconstruct(dedxs_df, langau_params.join(e_bins))
+    truth = e_bins.mean(axis=1).repeat(muons_per_ebin).rename('truth').reset_index().rename(columns={'index':'truebin'})
+    result = result.join(truth)
     
-    # One big list comprehension for maximum calculation speed
-    loglike = np.array([ np.sum([ np.log(theory.langau_pdf(xi, *fj_params)) - np.log(np.sum([ theory.langau_pdf(xi, *fk_params) for fk_params in landau_params])) for xi in dedxs ]) for fj_params in landau_params])
+    if rec_savefile:
+        print("Saving Reconstruction Data to \'./data/reconstructions/" + rec_savefile + '...', end='')
+        result.to_csv(r'../data/reconstructions/' + rec_savefile, index=False, header=True)
     
-    jtilde = np.argmax(loglike)
-    e_min_tilde, e_max_tilde = fitdf[['e_min', 'e_max']].iloc[jtilde]
-    return e_min_tilde, e_max_tilde, loglike
-
-
-# Same script as in reconstruct.py modified for the MC data
-truth = []
-reconstructed = []
-loglikes = []
-p_count = 0
-
-tot_particles = muons_per_ebin * fitdf.shape[0]
-pcnt_per_count = 100./tot_particles
-count_per_pcnt = 1/pcnt_per_count
-running_count_for_pcnt_increment = 0
-
-print("Reconstructing energies...")
-start = time.perf_counter()
-for key, value in dedxs_dict.items():
+    display_uptime(start, msg="Complete! Total Uptime:")
     
-    for muon_dedxs in value:
-        
-        if p_count > running_count_for_pcnt_increment:
-            print(f"{(running_count_for_pcnt_increment / tot_particles)*100:.0f}%   ", end = '\r', flush=True)
-            running_count_for_pcnt_increment += count_per_pcnt
-
-        p_count += 1
-        e_min, e_max, loglike = like_max(muon_dedxs)
-
-        true_e = fitdf[['e_min', 'e_max']].iloc[int(key)].mean()
-        truth.append(true_e)
-
-        guess_e = (e_min, e_max)
-        reconstructed.append(guess_e)
-        loglikes.append(loglike)
     
-end = time.perf_counter()
-t = end-start
-print(f"Done! Analysis time: {int(t//60)}m {t%60:0.1f}s")
-
-
-like_data_dict = []
-for i in range(len(truth)):
-    t = truth[i]
-    re_min = reconstructed[i][0]
-    re_max = reconstructed[i][1]
-    
-    this_dict = {'truth': t, 'reconstructed_min': re_min, 'reconstructed_max': re_max}
-    
-    for j in range(len(loglikes[i])):
-        like = loglikes[i][j]
-        this_dict[f'L{j}'] = like
-    
-    like_data_dict.append(this_dict)
-
-if save:
-    print("Saving likelihood data...")
-    like_data = pd.DataFrame.from_dict(like_data_dict)
-    like_data.to_csv(rf'../data/reconstructions/{save}', index=False, header=True)
-    print('Saved!')
+if __name__ == '__main__':
+    main()

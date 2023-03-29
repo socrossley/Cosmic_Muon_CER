@@ -1,5 +1,7 @@
 import numpy as np
 import pylandau
+from landaupy import langauss
+import contextlib
 
 Z = 18
 A = 39.948             # g / mol
@@ -8,6 +10,7 @@ K = 0.307              # MeV * cm^2 / mol
 Mmu = 105.658          # MeV for muon
 Me  = 0.51             # MeV for electron
 rho = 1.396            # g/cm3
+mpv_conv = 0.22278298
 
 def beta(gamma):
     return np.sqrt(1-(1./(gamma**2)))
@@ -33,7 +36,7 @@ def density(bg):
     X1 = 3.0
     a  = 0.19559
     m  = 3.0
-    N    = 2 * np.log(10)
+    N  = 2 * np.log(10)
     
     x = np.log10(bg)
 
@@ -85,16 +88,33 @@ def dedx_R(KE, mass, wcut, K=K, I=I, dens=True):
         ret -= density(b*g)/2
     return F * ret
 
+
 def langau_pdf(dedx, mpv, eta, sig):
-    if type(dedx) == np.ndarray:
-        sf = 10000
-        dedx = sf * dedx
-        mpv, eta, sig = sf * np.array([mpv, eta, sig])
-        return sf * eta * pylandau.langau_pdf(dedx, mpv, eta, sig)
-    
-    return eta * pylandau.get_langau_pdf(dedx, mpv, eta, sig)
+    # Uses the ROOT implementation of the Landau+Gaussian convolved pdf
+    pdf = pylandau.langau_pdf
+    params = mpv, eta, sig
+    if sig == 0:
+        pdf = pylandau.landau_pdf
+        params = mpv, eta
+        
+    with contextlib.redirect_stdout(open('/dev/null', 'w')):
+        if type(dedx) == np.ndarray:
+            sf = 10000
+            dedx = sf * dedx
+            adj_params = sf * np.array([*params])
+            return sf * eta * pdf(dedx, *adj_params)
+
+        return eta * pylandau.get_langau_pdf(dedx, mpv, eta, sig)
         
 
+def langauss_pdf(dedx, mpv, eta, sig):
+    # Utilizes the landaupy implementation of the Landau+Gaussian convolved pdf
+    # Inputs use the ROOT defined inputs for consistency
+    
+    mpv -= mpv_conv * eta # Conversion to landaupy standard
+    return langauss.pdf(dedx, mpv, eta, sig)
+    
+    
 
 def deltas(dedxs, num_sig=5, buff=2):
     # Iterative delta_loc removal, default values of 5 sigma and buffer of 2

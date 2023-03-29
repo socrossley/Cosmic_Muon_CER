@@ -2,6 +2,7 @@ import sys
 from os.path import realpath, dirname
 sys.path.insert(1, dirname(realpath('')))
 sys.path.insert(2, dirname(realpath(''))+'/util')
+sys.path.insert(3, realpath('')+'/util')
 path = dirname(realpath(''))
 
 import numpy as np
@@ -57,14 +58,20 @@ def load_slimming_data(tree, elims=(0,100)):
     slimmerdf = tree.arrays(slimmer_variables, library='pd')
     start_dists, end_dists = np.array([ [distance_to_edge(r[:3]), distance_to_edge(r[3:6])] for _, r in slimmerdf.iterrows() ]).T
     energy_mask = (slimmerdf.backtracked_e > elims[0]-Mmu/1000) & (slimmerdf.backtracked_e < elims[1]-Mmu/1000) & (np.abs(slimmerdf.backtracked_pdg) == 13)
-    mask = ((start_dists < thresh) & (end_dists < thresh) & energy_mask).to_numpy()
-    print("Will remove", np.sum(~mask), "particles")
+    edge_mask = (start_dists < thresh) & (end_dists < thresh)
+    
+    # Temporary location mask to test efficacy of location-based approach
+    # location_mask = ((slimmerdf.trk_sce_start_z > 400) & (slimmerdf.trk_sce_start_z < 600) & (slimmerdf.trk_sce_end_z > 400) & (slimmerdf.trk_sce_end_z < 600)).to_numpy()
+    
+    mask = (edge_mask & energy_mask).to_numpy()
+    # mask = (mask & location_mask)
+    print("Will analyze", np.sum(mask), "particles")
     return mask
 
 
-def load_data(tree, mask):
-    per_particle_variables = ['backtracked_e','backtracked_pdg','backtracked_purity']
-    variables = ['dedx_y','rr_y','pitch_y']
+def load_data(tree, mask, 
+              per_particle_variables=['backtracked_e','backtracked_pdg','backtracked_purity'], 
+              variables=['dedx_y','rr_y','pitch_y']):
     
     print("Generating Principal Dataframe...")
     part_df = tree.arrays(per_particle_variables, library='pd')
