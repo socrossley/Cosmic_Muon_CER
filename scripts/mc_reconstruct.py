@@ -22,13 +22,13 @@ def get_inputs():
     parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
     parser.add_argument("-s", "--save-reconstruction", default='', help="Save to file in \'./data/reconstructions\'")
     parser.add_argument("-m", "--save-muon-tracks", default='', help="Save to file in \'./data\'")
-    parser.add_argument("-n", "--num-per-ebin", default='200', type=int, help="How many MC muons to reconstruct per energy bin")
+    parser.add_argument("-n", "--num-per-ebin", default=200, type=int, help="How many MC muons to reconstruct per energy bin")
     parser.add_argument("--mc-only", default=False, action='store_true', help="Produce the MC muon dedxs only (no reconstruction)")
     parser.add_argument("-b", "--bias", default=0, type=float, help="Bias percentage to introduce to the generated dE/dx")
     parser.add_argument("-e", "--error", default=0, type=float, help="Error percentage to introduce to the generated dE/dx")
     parser.add_argument("-f", "--fitloc", default='narrow_lowpitch_fixedsig_fit_data.csv', 
                         help="Location in './data/fit_data/' of Langau models from which to generate MC dE/dx values.")
-    parser.add_argument("--energy-range", default=(1,10), type=(float, float), help="Energy range over which to generate MC muons.")
+    parser.add_argument("--energy-range", default=[1,10], nargs=2, type=float, help="Energy range over which to generate MC muons.")
     
     args = vars(parser.parse_args())
 
@@ -75,6 +75,8 @@ def display_uptime(start, msg=''):
 
 def generate_dedxs(df, rng):
     mpv, eta, sigma, *trkls = df.values[0]
+    # if np.isnan(trkls).any():
+    #     print(np.where(np.isnan(trkls)))
     trkls = np.asarray(trkls, dtype=int)
     tot_trkls = int(trkls.sum())
     dedxs = sample_from_langau(mpv, eta, sigma, tot_trkls)
@@ -93,14 +95,19 @@ def generate_dedxs(df, rng):
 # Perform the MC generation
 def mc_generate(langau_params, e_bins, muons_per_ebin, energy_range):
     rng = np.random.default_rng()
-    langau_params_for_generation = langau_params.loc[(e_bins['e_max'] > energy_range[0]) & (e_bins['e_min'] < energy_range[1])]
+    langau_params_for_generation = langau_params.loc[(e_bins['e_max'] > energy_range[0]) & (e_bins['e_min'] < energy_range[1]-0.0000001)]
     num_bins = langau_params_for_generation.shape[0]
     tot_num_muons = muons_per_ebin * num_bins
     trkls = rand_trkl(tot_num_muons)
     
-    generator_frame = langau_params_for_generation.copy()
+    
+    generator_frame = langau_params_for_generation.copy().reset_index(drop=True)
     trkls_df = pd.DataFrame(trkls.reshape(num_bins, muons_per_ebin))
+    
     generator_frame = generator_frame.join(trkls_df)
+    
+    # print(generator_frame.iloc[85])
+    
     tqdm.pandas(desc='Generating MC muon data', unit="bin")
     df = generator_frame.groupby(level=0).progress_apply(generate_dedxs, rng=rng)
     df = df.droplevel(0)

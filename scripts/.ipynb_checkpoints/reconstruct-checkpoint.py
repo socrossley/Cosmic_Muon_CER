@@ -22,7 +22,7 @@ def get_inputs():
     parser.add_argument("-s", "--save", default='', help="Save to file in \'./data/reconstructions\'")
     parser.add_argument("-f", "--fitloc", default='base_fit_data.csv', help="Read fit information from \'./data/fit_data\'")
     parser.add_argument("-c", "--cut", default=False, nargs=2, type=float, help="Cut dedx < 1.25 MeV and dedx > 6 MeV")
-    parser.add_argument("-p", "--pitch-lims", default=[0.3,0.87714132], nargs=2, type=float, help="Limit pitch between pitch-lims in cm (used in conjunction with pitch-limited fitloc)")
+    parser.add_argument("-p", "--pitch-lims", default=[0.3,0.4], nargs=2, type=float, help="Limit pitch between pitch-lims in cm (used in conjunction with pitch-limited fitloc)")
     parser.add_argument("-e", "--energy-lims", default=[0.1,100], nargs=2, type=float, help="Limit energy between energy-lims in GeV (used in conjunction with energy-limited fitloc)")
     parser.add_argument("-d", "--delta-rm-params", default=[0,0], nargs=2, type=int, help="num_sig and buff for delta-ray removal")
     parser.add_argument("--full", default=False, action='store_true', help='Load the full dataset (may take a long time)')
