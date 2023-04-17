@@ -93,9 +93,9 @@ def generate_dedxs(df, rng):
 
 
 # Perform the MC generation
-def mc_generate(langau_params, e_bins, muons_per_ebin, energy_range):
+def mc_generate(langau_params, e_bins, muons_per_ebin, generation_mask):
     rng = np.random.default_rng()
-    langau_params_for_generation = langau_params.loc[(e_bins['e_max'] > energy_range[0]) & (e_bins['e_min'] < energy_range[1]-0.0000001)]
+    langau_params_for_generation = langau_params.loc[generation_mask]
     num_bins = langau_params_for_generation.shape[0]
     tot_num_muons = muons_per_ebin * num_bins
     trkls = rand_trkl(tot_num_muons)
@@ -122,7 +122,9 @@ def main():
     muons_per_ebin = args['num_per_ebin']
     energy_range = args['energy_range']
     
-    dedxs_df = mc_generate(langau_params, e_bins, muons_per_ebin, energy_range)
+    generation_mask = (e_bins['e_max'] > energy_range[0]) & (e_bins['e_min'] < energy_range[1]-0.000001)
+    
+    dedxs_df = mc_generate(langau_params, e_bins, muons_per_ebin, generation_mask)
     display_uptime(start, "Complete:")
     
     dedxs_df.dedx_y += dedxs_df.dedx_y * args['bias']/100
@@ -137,8 +139,8 @@ def main():
         
     
     result = reconstruct.reconstruct(dedxs_df, langau_params.join(e_bins))
-    truth = e_bins.mean(axis=1).repeat(muons_per_ebin).rename('truth').reset_index().rename(columns={'index':'truebin'})
-    result = result.join(truth)
+    truth = e_bins.loc[generation_mask].mean(axis=1).repeat(muons_per_ebin).rename('truth').reset_index().rename(columns={'index':'truebin'})
+    result = truth.join(result)
     
     if rec_savefile:
         print("Saving Reconstruction Data to \'./data/reconstructions/" + rec_savefile + '...', end='')
