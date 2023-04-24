@@ -35,7 +35,7 @@ def get_inputs():
     return args
 
 
-def initialize(fits, spread_pct):    
+def initialize(fits, spread_pct):
     fitdf = pd.read_csv('../data/fit_data/' + fits)
 
     langau_params = fitdf[['mpv', 'eta', 'sigma']]
@@ -128,7 +128,7 @@ def main():
     display_uptime(start, "Complete:")
     
     dedxs_df.dedx_y += dedxs_df.dedx_y * args['bias']/100
-    dedxs_df.dedx_y += scipy.stats.norm.rvs(0, dedxs_df.dedx_y*args['error']/100)
+    # dedxs_df.dedx_y += scipy.stats.norm.rvs(0, dedxs_df.dedx_y*args['error']/100)
     
     dedxs_savefile = args['save_muon_tracks']
     rec_savefile = args['save_reconstruction']

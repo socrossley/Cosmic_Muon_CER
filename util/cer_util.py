@@ -1,3 +1,4 @@
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import uproot
@@ -13,6 +14,34 @@ from util.theory import langau_pdf, deltas
 # check whether a muon stops in the detector, generate the eloss for a muon and generate the eloss for all muons.
 # I just anticipate spending a while looking at likelihood things and this class will help analyze the raw data to compare
 # to the reconstructed data.
+
+datapath = Path(__file__).parents[1] / 'data'
+
+class MCData():
+    
+    def __init__(self, spread: float, bias: float):
+        spread_name = str(spread) + 'ps'
+        bias_name = (str(bias) + 'pb').replace('.','')
+        name = spread_name + bias_name
+        self.spread_pct = spread
+        self.bias_pct = bias
+        self.fitloc = datapath / 'fit_data' / 'th' / (spread_name + '.csv')
+        self.dataloc = datapath / 'reconstructions' / 'th' / (name + '.csv')
+        if not self.fitloc.exists():
+            raise FileNotFoundError(self.fitloc)
+        if not self.dataloc.exists():
+            raise FileNotFoundError(self.dataloc)
+        
+    def __getattr__(self, name):
+        if name == 'reconstruction':
+            self.reconstruction = pd.read_csv(self.dataloc)
+            return self.reconstruction
+        if name == 'fit_data':
+            self.fit_data = pd.read_csv(self.fitloc)
+            return self.fit_data
+        
+        raise AttributeError()
+        
 
 class CER():    
     

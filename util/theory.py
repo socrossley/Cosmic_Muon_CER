@@ -91,20 +91,21 @@ def dedx_R(KE, mass, wcut, K=K, I=I, dens=True):
 
 def langau_pdf(dedx, mpv, eta, sig):
     # Uses the ROOT implementation of the Landau+Gaussian convolved pdf
+    if type(dedx) != np.ndarray:
+        dedx = np.asarray([dedx])
+    
+    sf = 10000
     pdf = pylandau.langau_pdf
-    params = mpv, eta, sig
+    params = float(mpv), float(eta), float(sig)
     if sig == 0:
+        sf = 1/params[1]
         pdf = pylandau.landau_pdf
-        params = mpv, eta
-        
+        params = float(mpv), float(eta)
+    
     with contextlib.redirect_stdout(open('/dev/null', 'w')):
-        if type(dedx) == np.ndarray:
-            sf = 10000
-            dedx = sf * dedx
-            adj_params = sf * np.array([*params])
-            return sf * eta * pdf(dedx, *adj_params)
-
-        return eta * pylandau.get_langau_pdf(dedx, mpv, eta, sig)
+        dedx = sf * dedx
+        adj_params = sf * np.array([*params])
+        return sf * adj_params[1] * pdf(dedx, *adj_params)
         
 
 def langauss_pdf(dedx, mpv, eta, sig):
