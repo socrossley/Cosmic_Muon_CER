@@ -105,9 +105,7 @@ def mc_generate(langau_params, e_bins, muons_per_ebin, generation_mask):
     trkls_df = pd.DataFrame(trkls.reshape(num_bins, muons_per_ebin))
     
     generator_frame = generator_frame.join(trkls_df)
-    
-    # print(generator_frame.iloc[85])
-    
+        
     tqdm.pandas(desc='Generating MC muon data', unit="bin")
     df = generator_frame.groupby(level=0).progress_apply(generate_dedxs, rng=rng)
     df = df.droplevel(0)
